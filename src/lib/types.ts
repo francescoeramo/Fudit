@@ -1,4 +1,4 @@
-export type Store = "Esselunga" | "Lidl" | "Eurospin" | "Coop" | "Conad" | "Altro";
+export type Store = "Esselunga" | "Lidl" | "Eurospin" | "Coop" | "Conad" | "Vivo" | "Contè" | "Despar" | "Penny" | "Altro";
 export type Category = "Frutta e verdura" | "Carne e pesce" | "Latticini" | "Dispensa" | "Surgelati" | "Altro";
 export type MealSlot = "pranzo" | "cena";
 export type FoodStyle = "veloci" | "economici" | "high protein" | "salutari" | "classici italiani" | "vegetariani" | "vegani" | "senza glutine" | "senza lattosio";

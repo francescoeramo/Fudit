@@ -15,7 +15,8 @@
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "tailwindcss": "latest"
+    "tailwindcss": "latest",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@types/node": "latest",
