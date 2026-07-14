@@ -76,6 +76,7 @@ export const createPlan = (
     overBudget: total > prefs.budget,
     store: prefs.store,
     people: prefs.people,
+    budget: prefs.budget,
     weekKey: getWeekKey(now),
   };
 };

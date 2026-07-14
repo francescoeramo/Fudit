@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/static-components */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type SetStateAction } from "react";
 import {
   CalendarDays,
   ChefHat,
@@ -10,7 +10,6 @@ import {
   Plus,
   Copy,
   RotateCcw,
-  Save,
   Trash2,
   Moon,
   Sun,
@@ -27,11 +26,18 @@ import {
 } from "@/lib/calculations";
 import { categorizeFood } from "@/lib/food";
 import { createPlan } from "@/lib/planner";
+import {
+  normalizeRetention,
+  planDateLabel,
+  prunePlans,
+  uniquePlans,
+} from "@/lib/plans";
 import { recipes, seedPrices } from "@/lib/seed";
 import { load, save } from "@/lib/storage";
 import {
   FoodStyle,
   MealPlan,
+  PlanRetention,
   Preferences,
   PriceItem,
   ShoppingItem,
@@ -70,39 +76,158 @@ const defaultPrefs: Preferences = {
   styles: ["veloci", "economici"],
   allergies: [],
 };
+
+const retentionOptions: Array<{ value: PlanRetention; label: string }> = [
+  { value: 7, label: "Dopo 7 giorni" },
+  { value: 15, label: "Dopo 15 giorni" },
+  { value: 30, label: "Dopo 30 giorni" },
+  { value: 60, label: "Dopo 60 giorni" },
+  { value: "never", label: "Mai" },
+];
+
+function PlanPicker({
+  plans,
+  activeId,
+  onSelect,
+  variant = "cards",
+}: {
+  plans: MealPlan[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  variant?: "cards" | "list";
+}) {
+  if (!plans.length) return null;
+  return (
+    <div className={`plan-picker ${variant}`}>
+      <div className="plan-picker-heading">
+        <strong>
+          {variant === "cards" ? "I tuoi piani" : "Piani disponibili"}
+        </strong>
+        <span>{plans.length}</span>
+      </div>
+      <div className="plan-options">
+        {plans.map((item, index) => {
+          const active = item.id === activeId;
+          const number = plans.length - index;
+          const label = `Piano ${number}, ${item.store ?? "Supermercato"}, ${planDateLabel(item)}`;
+          return (
+            <button
+              type="button"
+              key={item.id}
+              className={`plan-option ${active ? "active" : ""}`}
+              aria-pressed={active}
+              aria-label={`Apri piano ${label}`}
+              onClick={() => onSelect(item.id)}
+            >
+              <span>
+                <strong>
+                  {item.store ?? "Altro"} · Piano {number}
+                </strong>
+                <small>{planDateLabel(item)}</small>
+              </span>
+              <span className="plan-option-meta">
+                € {item.total.toFixed(2)} · {item.people ?? 1} pers.
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [tab, setTab] = useState("plan");
   const [ready, setReady] = useState(false);
   const [dark, setDark] = useState(false);
   const [prefs, setPrefs] = useState(defaultPrefs);
   const [catalog, setCatalog] = useState<PriceItem[]>(seedPrices);
-  const [plan, setPlan] = useState<MealPlan | null>(null);
-  const [saved, setSaved] = useState<MealPlan[]>([]);
-  const [shopping, setShopping] = useState<ShoppingItem[]>([]);
+  const [plans, setPlans] = useState<MealPlan[]>([]);
+  const [activePlanId, setActivePlanId] = useState("");
+  const [shoppingByPlan, setShoppingByPlan] = useState<
+    Record<string, ShoppingItem[]>
+  >({});
+  const [retention, setRetention] = useState<PlanRetention>("never");
   const [notice, setNotice] = useState("");
   useEffect(() => {
     setPrefs(load("fudit:prefs", defaultPrefs));
     setDark(load("fudit:dark", false));
     const stored = load<PriceItem[]>("fudit:catalog", seedPrices);
-    setCatalog(
-      seedPrices
-        .map((seed) => ({
-          ...seed,
-          ...stored.find((item) => item.id === seed.id),
-          stores: {
-            ...seed.stores,
-            ...stored.find((item) => item.id === seed.id)?.stores,
-          },
-        }))
-        .concat(
-          stored.filter(
-            (item) => !seedPrices.some((seed) => seed.id === item.id),
-          ),
+    const mergedCatalog = seedPrices
+      .map((seed) => ({
+        ...seed,
+        ...stored.find((item) => item.id === seed.id),
+        stores: {
+          ...seed.stores,
+          ...stored.find((item) => item.id === seed.id)?.stores,
+        },
+      }))
+      .concat(
+        stored.filter(
+          (item) => !seedPrices.some((seed) => seed.id === item.id),
         ),
+      );
+    setCatalog(mergedCatalog);
+    const storedRetention = normalizeRetention(
+      load<unknown>("fudit:plan-retention", "never"),
     );
-    setPlan(load("fudit:plan", null));
-    setSaved(load("fudit:saved", []));
-    setShopping(load("fudit:shopping", []));
+    const legacyPlan = load<MealPlan | null>("fudit:plan", null);
+    const legacySavedValue = load<unknown>("fudit:saved", []);
+    const storedPlansValue = load<unknown>("fudit:plans", []);
+    const legacySaved = Array.isArray(legacySavedValue)
+      ? (legacySavedValue as MealPlan[])
+      : [];
+    const storedPlans = Array.isArray(storedPlansValue)
+      ? (storedPlansValue as MealPlan[])
+      : [];
+    const migratedPlans = prunePlans(
+      uniquePlans(
+        storedPlans.length
+          ? storedPlans
+          : [legacyPlan, ...legacySaved].filter(
+              (item): item is MealPlan => item !== null,
+            ),
+      ),
+      storedRetention,
+    );
+    const storedShoppingValue = load<unknown>("fudit:shopping-by-plan", {});
+    const storedShopping =
+      storedShoppingValue &&
+      typeof storedShoppingValue === "object" &&
+      !Array.isArray(storedShoppingValue)
+        ? (storedShoppingValue as Record<string, ShoppingItem[]>)
+        : {};
+    const legacyShoppingValue = load<unknown>("fudit:shopping", []);
+    const legacyShopping = Array.isArray(legacyShoppingValue)
+      ? (legacyShoppingValue as ShoppingItem[])
+      : [];
+    const hydratedShopping = { ...storedShopping };
+    migratedPlans.forEach((item) => {
+      if (!Array.isArray(hydratedShopping[item.id])) {
+        hydratedShopping[item.id] =
+          item.id === legacyPlan?.id && legacyShopping.length
+            ? legacyShopping
+            : aggregateShopping(
+                item.meals
+                  .map((meal) =>
+                    recipes.find((recipe) => recipe.id === meal.recipeId),
+                  )
+                  .filter((recipe) => recipe !== undefined),
+                mergedCatalog,
+                item.store ?? defaultPrefs.store,
+                item.people ?? defaultPrefs.people,
+              );
+      }
+    });
+    const storedActive = load("fudit:active-plan", "");
+    setPlans(migratedPlans);
+    setActivePlanId(
+      migratedPlans.some((item) => item.id === storedActive)
+        ? storedActive
+        : (migratedPlans[0]?.id ?? ""),
+    );
+    setShoppingByPlan(hydratedShopping);
+    setRetention(storedRetention);
     setReady(true);
   }, []);
   useEffect(() => {
@@ -110,11 +235,74 @@ export default function Home() {
       save("fudit:prefs", prefs);
       save("fudit:dark", dark);
       save("fudit:catalog", catalog);
-      save("fudit:plan", plan);
-      save("fudit:saved", saved);
-      save("fudit:shopping", shopping);
+      save("fudit:plans", plans);
+      save("fudit:active-plan", activePlanId);
+      save("fudit:shopping-by-plan", shoppingByPlan);
+      save("fudit:plan-retention", retention);
     }
-  }, [prefs, catalog, plan, saved, shopping, dark, ready]);
+  }, [
+    prefs,
+    catalog,
+    plans,
+    activePlanId,
+    shoppingByPlan,
+    retention,
+    dark,
+    ready,
+  ]);
+  useEffect(() => {
+    if (!ready || retention === "never") return;
+    const interval = window.setInterval(() => {
+      setPlans((current) => {
+        const remaining = prunePlans(current, retention);
+        const ids = new Set(remaining.map((item) => item.id));
+        setActivePlanId((active) =>
+          ids.has(active) ? active : (remaining[0]?.id ?? ""),
+        );
+        setShoppingByPlan((shoppingState) =>
+          Object.fromEntries(
+            Object.entries(shoppingState).filter(([id]) => ids.has(id)),
+          ),
+        );
+        return remaining;
+      });
+    }, 3_600_000);
+    return () => window.clearInterval(interval);
+  }, [ready, retention]);
+  const plan =
+    plans.find((item) => item.id === activePlanId) ?? plans[0] ?? null;
+  const shopping = plan ? (shoppingByPlan[plan.id] ?? []) : [];
+  const setShopping = (value: SetStateAction<ShoppingItem[]>) => {
+    if (!plan) return;
+    setShoppingByPlan((current) => {
+      const activeShopping = current[plan.id] ?? [];
+      const next = typeof value === "function" ? value(activeShopping) : value;
+      return { ...current, [plan.id]: next };
+    });
+  };
+  const selectPlan = (id: string) => setActivePlanId(id);
+  const deletePlan = (id: string) => {
+    const remaining = plans.filter((item) => item.id !== id);
+    setPlans(remaining);
+    setShoppingByPlan((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+    if (activePlanId === id) setActivePlanId(remaining[0]?.id ?? "");
+    setNotice("Piano eliminato.");
+  };
+  const changeRetention = (value: PlanRetention) => {
+    const remaining = prunePlans(plans, value);
+    setRetention(value);
+    setPlans(remaining);
+    if (!remaining.some((item) => item.id === activePlanId))
+      setActivePlanId(remaining[0]?.id ?? "");
+    const ids = new Set(remaining.map((item) => item.id));
+    setShoppingByPlan((current) =>
+      Object.fromEntries(Object.entries(current).filter(([id]) => ids.has(id))),
+    );
+  };
   const planStore = plan?.store ?? prefs.store;
   const generate = () => {
     if (prefs.people <= 0 || prefs.budget <= 0) {
@@ -132,17 +320,17 @@ export default function Home() {
       );
       return;
     }
-    setPlan(p);
-    setShopping(
-      aggregateShopping(
-        p.meals
-          .map((m) => recipes.find((r) => r.id === m.recipeId)!)
-          .filter(Boolean),
-        catalog,
-        prefs.store,
-        prefs.people,
-      ),
+    const nextShopping = aggregateShopping(
+      p.meals
+        .map((m) => recipes.find((r) => r.id === m.recipeId)!)
+        .filter(Boolean),
+      catalog,
+      prefs.store,
+      prefs.people,
     );
+    setPlans((current) => [p, ...current]);
+    setActivePlanId(p.id);
+    setShoppingByPlan((current) => ({ ...current, [p.id]: nextShopping }));
     setNotice(
       p.overBudget
         ? "Budget superato: prova lo stile economici o riduci i pasti."
@@ -179,8 +367,13 @@ export default function Home() {
         : m,
     );
     const total = roundMoney(meals.reduce((s, m) => s + m.cost, 0));
-    const p = { ...plan, meals, total, overBudget: total > prefs.budget };
-    setPlan(p);
+    const p = {
+      ...plan,
+      meals,
+      total,
+      overBudget: total > (plan.budget ?? prefs.budget),
+    };
+    setPlans((current) => current.map((item) => (item.id === p.id ? p : item)));
     setShopping(
       aggregateShopping(
         meals
@@ -345,191 +538,187 @@ export default function Home() {
         </div>
       )}
       {tab === "plan" && (
-        <section className="grid two plan-grid">
-          <div className="card">
-            <h2>Il tuo piano</h2>
-            {!plan ? (
-              <>
-                <p className="muted">
-                  Scegli le preferenze e genera la settimana.
-                </p>
-                <button className="button" onClick={generate}>
-                  Crea piano di 7 giorni
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="grid three">
-                  <div>
-                    <span className="muted">Stimato</span>
-                    <div className="money">€ {plan.total.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <span className="muted">Budget</span>
-                    <div>€ {prefs.budget.toFixed(0)}</div>
-                  </div>
-                  <div>
-                    <span className="muted">Stato</span>
-                    <div>{plan.overBudget ? "Da ottimizzare" : "In linea"}</div>
-                  </div>
-                </div>
-                {days.map((d, i) => (
-                  <div className="day" key={d}>
-                    <b>{d}</b>
-                    {plan.meals
-                      .filter((m) => m.day === i)
-                      .map((m) => {
-                        const r = recipes.find((x) => x.id === m.recipeId)!;
-                        return (
-                          <div
-                            key={m.slot}
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              gap: 8,
-                              marginTop: 5,
-                            }}
-                          >
-                            <span>
-                              {m.slot} · {r.title}
-                            </span>
-                            <button
-                              className="button alt"
-                              style={{ padding: "4px 7px" }}
-                              onClick={() => regenerate(i, m.slot)}
-                            >
-                              <RotateCcw size={13} />
-                            </button>
-                          </div>
-                        );
-                      })}
-                  </div>
-                ))}
-                <button
-                  className="button alt"
-                  onClick={() => {
-                    setSaved((s) => [plan, ...s]);
-                    setNotice("Piano salvato.");
-                  }}
-                >
-                  <Save size={16} /> Salva piano
-                </button>
-              </>
-            )}
-          </div>
-          <div className="card preferences-card">
-            <h2>Preferenze</h2>
-            <label>Supermercato</label>
-            <select
-              value={prefs.store}
-              onChange={(e) =>
-                setPrefs({ ...prefs, store: e.target.value as Store })
-              }
-            >
-              {stores.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-            <div className="grid two compact-grid">
-              <div>
-                <label>Budget settimanale (€)</label>
-                <input
-                  aria-label="Budget settimanale (€)"
-                  type="number"
-                  min="0"
-                  max="10000"
-                  value={prefs.budget || ""}
-                  onChange={(e) =>
-                    setPrefs({
-                      ...prefs,
-                      budget:
-                        e.target.value === ""
-                          ? 0
-                          : Math.min(10000, Math.max(0, +e.target.value || 0)),
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <label>Persone</label>
-                <input
-                  aria-label="Persone"
-                  type="number"
-                  min="0"
-                  max="30"
-                  value={prefs.people || ""}
-                  onChange={(e) =>
-                    setPrefs({
-                      ...prefs,
-                      people:
-                        e.target.value === ""
-                          ? 0
-                          : Math.min(30, Math.max(0, +e.target.value || 0)),
-                    })
-                  }
-                />
-              </div>
-            </div>
-            <fieldset>
-              <legend>Pasti</legend>
-              <div className="choice-row">
-                {["pranzo", "cena"].map((m) => (
-                  <label key={m} className="pill meal-choice">
-                    <input
-                      className="check"
-                      type="checkbox"
-                      checked={prefs.meals.includes(m as "pranzo" | "cena")}
-                      onChange={() =>
-                        setPrefs((p) => ({
-                          ...p,
-                          meals: p.meals.includes(m as "pranzo" | "cena")
-                            ? p.meals.filter((x) => x !== m)
-                            : [...p.meals, m as "pranzo" | "cena"],
-                        }))
-                      }
-                    />
-                    <span>{m}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <fieldset>
-              <legend>Stile</legend>
-              <div className="choice-row">
-                {styles.map((s) => (
-                  <button
-                    type="button"
-                    key={s}
-                    className={
-                      "pill style-choice " +
-                      (prefs.styles.includes(s) ? "active" : "")
-                    }
-                    aria-pressed={prefs.styles.includes(s)}
-                    onClick={() => toggle(s)}
-                  >
-                    {s}
+        <>
+          <PlanPicker
+            plans={plans}
+            activeId={plan?.id ?? ""}
+            onSelect={selectPlan}
+          />
+          <section className="grid two plan-grid">
+            <div className="card">
+              <h2>Il tuo piano</h2>
+              {!plan ? (
+                <>
+                  <p className="muted">
+                    Scegli le preferenze e genera la settimana.
+                  </p>
+                  <button className="button" onClick={generate}>
+                    Crea piano di 7 giorni
                   </button>
+                </>
+              ) : (
+                <>
+                  <div className="grid three">
+                    <div>
+                      <span className="muted">Stimato</span>
+                      <div className="money">€ {plan.total.toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <span className="muted">Budget</span>
+                      <div>€ {(plan.budget ?? prefs.budget).toFixed(0)}</div>
+                    </div>
+                    <div>
+                      <span className="muted">Stato</span>
+                      <div>
+                        {plan.overBudget ? "Da ottimizzare" : "In linea"}
+                      </div>
+                    </div>
+                  </div>
+                  {days.map((d, i) => (
+                    <div className="day" key={d}>
+                      <b>{d}</b>
+                      {plan.meals
+                        .filter((m) => m.day === i)
+                        .map((m) => {
+                          const r = recipes.find((x) => x.id === m.recipeId)!;
+                          return (
+                            <div key={m.slot} className="meal-row">
+                              <span className="meal-title">
+                                {m.slot} · {r.title}
+                              </span>
+                              <button
+                                className="meal-refresh"
+                                aria-label={`Rigenera ${m.slot} di ${d}`}
+                                onClick={() => regenerate(i, m.slot)}
+                              >
+                                <RotateCcw size={13} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  ))}
+                  <div className="autosave-note">Salvato automaticamente</div>
+                </>
+              )}
+            </div>
+            <div className="card preferences-card">
+              <h2>Preferenze</h2>
+              <label>Supermercato</label>
+              <select
+                value={prefs.store}
+                onChange={(e) =>
+                  setPrefs({ ...prefs, store: e.target.value as Store })
+                }
+              >
+                {stores.map((s) => (
+                  <option key={s}>{s}</option>
                 ))}
+              </select>
+              <div className="grid two compact-grid">
+                <div>
+                  <label>Budget settimanale (€)</label>
+                  <input
+                    aria-label="Budget settimanale (€)"
+                    type="number"
+                    min="0"
+                    max="10000"
+                    value={prefs.budget || ""}
+                    onChange={(e) =>
+                      setPrefs({
+                        ...prefs,
+                        budget:
+                          e.target.value === ""
+                            ? 0
+                            : Math.min(
+                                10000,
+                                Math.max(0, +e.target.value || 0),
+                              ),
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <label>Persone</label>
+                  <input
+                    aria-label="Persone"
+                    type="number"
+                    min="0"
+                    max="30"
+                    value={prefs.people || ""}
+                    onChange={(e) =>
+                      setPrefs({
+                        ...prefs,
+                        people:
+                          e.target.value === ""
+                            ? 0
+                            : Math.min(30, Math.max(0, +e.target.value || 0)),
+                      })
+                    }
+                  />
+                </div>
               </div>
-            </fieldset>
-            <label>Allergie / intolleranze (separate da virgola)</label>
-            <input
-              maxLength={300}
-              value={prefs.allergies.join(", ")}
-              onChange={(e) =>
-                setPrefs({
-                  ...prefs,
-                  allergies: e.target.value
-                    .split(",")
-                    .slice(0, 20)
-                    .map((x) => x.trim().slice(0, 40))
-                    .filter(Boolean),
-                })
-              }
-              placeholder="es. glutine, latte"
-            />
-          </div>
-        </section>
+              <fieldset>
+                <legend>Pasti</legend>
+                <div className="choice-row">
+                  {["pranzo", "cena"].map((m) => (
+                    <label key={m} className="pill meal-choice">
+                      <input
+                        className="check"
+                        type="checkbox"
+                        checked={prefs.meals.includes(m as "pranzo" | "cena")}
+                        onChange={() =>
+                          setPrefs((p) => ({
+                            ...p,
+                            meals: p.meals.includes(m as "pranzo" | "cena")
+                              ? p.meals.filter((x) => x !== m)
+                              : [...p.meals, m as "pranzo" | "cena"],
+                          }))
+                        }
+                      />
+                      <span>{m}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset>
+                <legend>Stile</legend>
+                <div className="choice-row">
+                  {styles.map((s) => (
+                    <button
+                      type="button"
+                      key={s}
+                      className={
+                        "pill style-choice " +
+                        (prefs.styles.includes(s) ? "active" : "")
+                      }
+                      aria-pressed={prefs.styles.includes(s)}
+                      onClick={() => toggle(s)}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+              <label>Allergie / intolleranze (separate da virgola)</label>
+              <input
+                maxLength={300}
+                value={prefs.allergies.join(", ")}
+                onChange={(e) =>
+                  setPrefs({
+                    ...prefs,
+                    allergies: e.target.value
+                      .split(",")
+                      .slice(0, 20)
+                      .map((x) => x.trim().slice(0, 40))
+                      .filter(Boolean),
+                  })
+                }
+                placeholder="es. glutine, latte"
+              />
+            </div>
+          </section>
+        </>
       )}
       {tab === "shop" && (
         <section className="card shopping-card">
@@ -540,6 +729,12 @@ export default function Home() {
             </p>
           ) : (
             <>
+              <PlanPicker
+                plans={plans}
+                activeId={plan.id}
+                onSelect={selectPlan}
+                variant="list"
+              />
               <div className="store-context">
                 <ShoppingBasket size={22} />
                 <div>
@@ -840,6 +1035,12 @@ export default function Home() {
             </p>
           ) : (
             <>
+              <PlanPicker
+                plans={plans}
+                activeId={plan.id}
+                onSelect={selectPlan}
+                variant="list"
+              />
               <div className="store-context">
                 <CircleDollarSign size={22} />
                 <div>
@@ -936,23 +1137,74 @@ export default function Home() {
             I dati restano in questo browser. In futuro potrai collegare
             Supabase senza cambiare la logica dell’app.
           </p>
-          <h3>Piani salvati ({saved.length})</h3>
-          {saved.map((p) => (
-            <div key={p.id} className="pill">
-              {new Date(p.createdAt).toLocaleDateString("it-IT")} · €{" "}
-              {p.total.toFixed(2)}
+          <div className="settings-grid">
+            <div>
+              <label htmlFor="plan-retention">Eliminazione automatica</label>
+              <select
+                id="plan-retention"
+                value={retention}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  changeRetention(
+                    value === "never"
+                      ? "never"
+                      : (Number(value) as PlanRetention),
+                  );
+                }}
+              >
+                {retentionOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <p className="muted retention-help">
+                La scadenza viene controllata all’apertura dell’app e durante
+                l’utilizzo.
+              </p>
             </div>
-          ))}
-          <br />
+            <div>
+              <h3 className="settings-title">Piani salvati ({plans.length})</h3>
+              <div className="saved-plan-list">
+                {plans.map((item) => (
+                  <div className="saved-plan-row" key={item.id}>
+                    <button
+                      type="button"
+                      className="saved-plan-open"
+                      onClick={() => {
+                        selectPlan(item.id);
+                        setTab("plan");
+                      }}
+                    >
+                      <strong>{item.store ?? "Altro"}</strong>
+                      <span>{planDateLabel(item)}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="row-delete"
+                      aria-label={`Elimina piano ${item.store ?? "Altro"} ${planDateLabel(item)}`}
+                      onClick={() => deletePlan(item.id)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+                {!plans.length && (
+                  <p className="muted">Nessun piano archiviato.</p>
+                )}
+              </div>
+            </div>
+          </div>
           <button
-            className="button alt"
+            className="button alt reset-button"
             onClick={() => {
               localStorage.clear();
               setPrefs(defaultPrefs);
               setCatalog(seedPrices);
-              setPlan(null);
-              setSaved([]);
-              setShopping([]);
+              setPlans([]);
+              setActivePlanId("");
+              setShoppingByPlan({});
+              setRetention("never");
               setNotice("Dati locali ripristinati.");
             }}
           >

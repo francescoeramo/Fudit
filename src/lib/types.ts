@@ -86,8 +86,11 @@ export interface MealPlan {
   overBudget: boolean;
   store?: Store;
   people?: number;
+  budget?: number;
   weekKey?: string;
 }
+
+export type PlanRetention = 7 | 15 | 30 | 60 | "never";
 export interface ShoppingItem extends Ingredient {
   estimatedCost: number;
   checked?: boolean;

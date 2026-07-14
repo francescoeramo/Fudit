@@ -76,4 +76,54 @@ describe("flussi principali Fudit", () => {
     await user.type(people, "3");
     expect(people).toHaveValue(3);
   });
+
+  it("archivia ogni piano e permette di selezionarlo in home, spesa e prezzi", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+    await screen.findByText("Il tuo piano");
+    await user.click(screen.getByRole("button", { name: "Genera piano" }));
+    await user.selectOptions(screen.getByRole("combobox"), "Despar");
+    await user.click(screen.getByRole("button", { name: "Genera piano" }));
+
+    expect(
+      document.querySelectorAll(".plan-picker.cards .plan-option"),
+    ).toHaveLength(2);
+    await waitFor(() =>
+      expect(
+        JSON.parse(localStorage.getItem("fudit:plans") ?? "[]"),
+      ).toHaveLength(2),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Spesa" }));
+    expect(
+      document.querySelectorAll(".plan-picker.list .plan-option"),
+    ).toHaveLength(2);
+    const lidlPlan = Array.from(
+      document.querySelectorAll<HTMLButtonElement>(
+        ".plan-picker.list .plan-option",
+      ),
+    ).find((button) => button.textContent?.includes("Lidl"));
+    expect(lidlPlan).toBeDefined();
+    await user.click(lidlPlan!);
+    expect(document.querySelector(".store-context strong")).toHaveTextContent(
+      "Lidl",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Prezzi" }));
+    expect(
+      document.querySelectorAll(".plan-picker.list .plan-option"),
+    ).toHaveLength(2);
+  });
+
+  it("salva la durata scelta per l'eliminazione automatica", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+    await screen.findByText("Il tuo piano");
+    await user.click(screen.getByRole("button", { name: "Impostazioni" }));
+    const retention = screen.getByLabelText("Eliminazione automatica");
+    await user.selectOptions(retention, "15");
+    await waitFor(() =>
+      expect(localStorage.getItem("fudit:plan-retention")).toBe("15"),
+    );
+  });
 });
