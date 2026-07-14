@@ -5,6 +5,7 @@ import {
   CalendarDays,
   ChefHat,
   CircleDollarSign,
+  FileHeart,
   Settings,
   ShoppingBasket,
   Plus,
@@ -25,6 +26,8 @@ import {
   storeUnitPrice,
 } from "@/lib/calculations";
 import { categorizeFood } from "@/lib/food";
+import DietImporter from "@/components/diet-importer";
+import { BuiltDietPlan } from "@/lib/diet";
 import { createPlan } from "@/lib/planner";
 import {
   normalizeRetention,
@@ -123,9 +126,14 @@ function PlanPicker({
             >
               <span>
                 <strong>
-                  {item.store ?? "Altro"} · Piano {number}
+                  {item.source === "diet-pdf"
+                    ? `Dieta · ${item.name || item.store || `Piano ${number}`}`
+                    : `${item.store ?? "Altro"} · Piano ${number}`}
                 </strong>
-                <small>{planDateLabel(item)}</small>
+                <small>
+                  {item.source === "diet-pdf" && `${item.store} · `}
+                  {planDateLabel(item)}
+                </small>
               </span>
               <span className="plan-option-meta">
                 € {item.total.toFixed(2)} · {item.people ?? 1} pers.
@@ -144,6 +152,7 @@ export default function Home() {
   const [dark, setDark] = useState(false);
   const [prefs, setPrefs] = useState(defaultPrefs);
   const [catalog, setCatalog] = useState<PriceItem[]>(seedPrices);
+  const [dietRecipes, setDietRecipes] = useState<Recipe[]>([]);
   const [plans, setPlans] = useState<MealPlan[]>([]);
   const [activePlanId, setActivePlanId] = useState("");
   const [shoppingByPlan, setShoppingByPlan] = useState<
@@ -170,6 +179,18 @@ export default function Home() {
         ),
       );
     setCatalog(mergedCatalog);
+    const storedDietRecipesValue = load<unknown>("fudit:diet-recipes", []);
+    const storedDietRecipes = Array.isArray(storedDietRecipesValue)
+      ? (storedDietRecipesValue as Recipe[]).filter(
+          (recipe) =>
+            recipe &&
+            typeof recipe.id === "string" &&
+            Array.isArray(recipe.ingredients) &&
+            Array.isArray(recipe.steps),
+        )
+      : [];
+    const availableRecipes = [...storedDietRecipes, ...recipes];
+    setDietRecipes(storedDietRecipes);
     const storedRetention = normalizeRetention(
       load<unknown>("fudit:plan-retention", "never"),
     );
@@ -212,7 +233,9 @@ export default function Home() {
             : aggregateShopping(
                 item.meals
                   .map((meal) =>
-                    recipes.find((recipe) => recipe.id === meal.recipeId),
+                    availableRecipes.find(
+                      (recipe) => recipe.id === meal.recipeId,
+                    ),
                   )
                   .filter((recipe) => recipe !== undefined),
                 mergedCatalog,
@@ -237,6 +260,7 @@ export default function Home() {
       save("fudit:prefs", prefs);
       save("fudit:dark", dark);
       save("fudit:catalog", catalog);
+      save("fudit:diet-recipes", dietRecipes);
       save("fudit:plans", plans);
       save("fudit:active-plan", activePlanId);
       save("fudit:shopping-by-plan", shoppingByPlan);
@@ -245,6 +269,7 @@ export default function Home() {
   }, [
     prefs,
     catalog,
+    dietRecipes,
     plans,
     activePlanId,
     shoppingByPlan,
@@ -271,6 +296,7 @@ export default function Home() {
     }, 3_600_000);
     return () => window.clearInterval(interval);
   }, [ready, retention]);
+  const allRecipes = [...dietRecipes, ...recipes];
   const plan =
     plans.find((item) => item.id === activePlanId) ?? plans[0] ?? null;
   const shopping = plan ? (shoppingByPlan[plan.id] ?? []) : [];
@@ -306,6 +332,25 @@ export default function Home() {
     );
   };
   const planStore = plan?.store ?? prefs.store;
+  const addDietPlan = (result: BuiltDietPlan) => {
+    setCatalog((current) => [
+      ...current,
+      ...result.newPrices.filter(
+        (price) => !current.some((item) => item.id === price.id),
+      ),
+    ]);
+    setDietRecipes((current) => [...result.recipes, ...current]);
+    setPlans((current) => [result.plan, ...current]);
+    setActivePlanId(result.plan.id);
+    setShoppingByPlan((current) => ({
+      ...current,
+      [result.plan.id]: result.shopping,
+    }));
+    setNotice(
+      `Dieta importata: € ${result.plan.total.toFixed(2)} per la settimana. ${result.recognizedPrices}/${result.totalIngredients} alimenti collegati al catalogo.`,
+    );
+    setTab("plan");
+  };
   const recipePrice = (recipe: Recipe) => {
     if (!plan)
       return (
@@ -515,6 +560,7 @@ export default function Home() {
         ["plan", CalendarDays, "Pianifica"],
         ["shop", ShoppingBasket, "Spesa"],
         ["recipes", ChefHat, "Ricette"],
+        ["diet", FileHeart, "Dieta"],
         ["prices", CircleDollarSign, "Prezzi"],
         ["settings", Settings, "Impostazioni"],
       ].map(([id, Icon, label]) => (
@@ -541,10 +587,12 @@ export default function Home() {
               : tab === "shop"
                 ? "Lista della spesa"
                 : tab === "recipes"
-                  ? `${recipes.length} ricette`
-                  : tab === "prices"
-                    ? "Catalogo prezzi"
-                    : "Preferenze e dati"}
+                  ? `${allRecipes.length} ricette`
+                  : tab === "diet"
+                    ? "Importa dieta PDF"
+                    : tab === "prices"
+                      ? "Catalogo prezzi"
+                      : "Preferenze e dati"}
           </span>
         </div>
         <div className="header-actions">
@@ -613,19 +661,28 @@ export default function Home() {
                       {plan.meals
                         .filter((m) => m.day === i)
                         .map((m) => {
-                          const r = recipes.find((x) => x.id === m.recipeId)!;
+                          const r = allRecipes.find((x) => x.id === m.recipeId);
+                          if (!r) return null;
                           return (
-                            <div key={m.slot} className="meal-row">
+                            <div
+                              key={`${m.slot}-${m.recipeId}`}
+                              className="meal-row"
+                            >
                               <span className="meal-title">
                                 {m.slot} · {r.title}
+                                <small className="meal-cost">
+                                  € {m.cost.toFixed(2)}
+                                </small>
                               </span>
-                              <button
-                                className="meal-refresh"
-                                aria-label={`Rigenera ${m.slot} di ${d}`}
-                                onClick={() => regenerate(i, m.slot)}
-                              >
-                                <RotateCcw size={13} />
-                              </button>
+                              {plan.source !== "diet-pdf" && (
+                                <button
+                                  className="meal-refresh"
+                                  aria-label={`Rigenera ${m.slot} di ${d}`}
+                                  onClick={() => regenerate(i, m.slot)}
+                                >
+                                  <RotateCcw size={13} />
+                                </button>
+                              )}
                             </div>
                           );
                         })}
@@ -1016,7 +1073,7 @@ export default function Home() {
             </div>
           </div>
           <section className="grid two recipe-grid">
-            {recipes.map((r) => (
+            {allRecipes.map((r) => (
               <article className="card recipe-card" key={r.id}>
                 <div className="recipe-top">
                   <div>
@@ -1073,6 +1130,16 @@ export default function Home() {
             ))}
           </section>
         </>
+      )}
+      {tab === "diet" && (
+        <DietImporter
+          stores={stores}
+          catalog={catalog}
+          defaultStore={prefs.store}
+          defaultPeople={prefs.people}
+          defaultBudget={prefs.budget}
+          onGenerated={addDietPlan}
+        />
       )}
       {tab === "prices" && (
         <section className="card">
@@ -1268,6 +1335,7 @@ export default function Home() {
               localStorage.clear();
               setPrefs(defaultPrefs);
               setCatalog(seedPrices);
+              setDietRecipes([]);
               setPlans([]);
               setActivePlanId("");
               setShoppingByPlan({});

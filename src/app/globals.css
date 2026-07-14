@@ -306,3 +306,218 @@
   color: #f1c77f;
   background: #4e3b1d;
 }
+
+.meal-cost {
+  display: block;
+  margin-top: 2px;
+  color: var(--coral);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.diet-layout {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+
+.diet-upload-card {
+  position: sticky;
+  top: 88px;
+}
+
+.diet-settings {
+  grid-template-columns: minmax(0, 1fr) repeat(2, minmax(90px, 0.55fr));
+  gap: 10px;
+}
+
+.diet-upload {
+  margin-top: 18px;
+  justify-content: center;
+  min-height: 58px;
+  background: color-mix(in srgb, var(--mint) 45%, var(--surface));
+}
+
+.diet-hint {
+  margin: 8px 0 0;
+  line-height: 1.4;
+}
+
+.diet-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, #bd3f35 35%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, #bd3f35 8%, var(--surface));
+}
+
+.spin {
+  animation: spin 0.85s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.diet-count {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: var(--mint);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.diet-empty {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 9px;
+}
+
+.diet-coverage {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 16px 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--mint);
+}
+
+.diet-coverage > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.diet-coverage small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.diet-meals {
+  display: grid;
+  gap: 10px;
+  max-height: 720px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.diet-meal {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.diet-meal-head {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(105px, 0.8fr) 34px;
+  align-items: center;
+  gap: 7px;
+}
+
+.diet-meal-head select,
+.diet-title-input,
+.diet-ingredient input,
+.diet-ingredient select {
+  padding: 8px;
+  font-size: 12px;
+}
+
+.diet-title-input {
+  margin-top: 8px;
+  font-weight: 750;
+}
+
+.diet-ingredients {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.diet-ingredient {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) 74px 58px 32px;
+  align-items: center;
+  gap: 6px;
+}
+
+.diet-add-ingredient {
+  width: fit-content;
+  border: 0;
+  padding: 6px 0;
+  background: transparent;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.diet-review-actions {
+  display: grid;
+  grid-template-columns: auto minmax(200px, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.diet-review-actions .button {
+  justify-content: center;
+}
+
+.diet-generate {
+  width: 100%;
+}
+
+@media (min-width: 850px) {
+  .diet-layout {
+    grid-template-columns: minmax(300px, 0.78fr) minmax(0, 1.22fr);
+  }
+}
+
+@media (max-width: 699px) {
+  .nav .tab {
+    min-width: 0;
+    flex: 1 1 0;
+    padding-inline: 2px;
+    font-size: 9px;
+  }
+
+  .diet-upload-card {
+    position: static;
+  }
+}
+
+@media (max-width: 520px) {
+  .diet-settings {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .diet-settings > div:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .diet-meal-head {
+    grid-template-columns: 1fr 1fr 34px;
+  }
+
+  .diet-ingredient {
+    grid-template-columns: minmax(0, 1fr) 68px 54px 30px;
+  }
+
+  .diet-review-actions {
+    grid-template-columns: 1fr;
+  }
+}

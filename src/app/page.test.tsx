@@ -21,6 +21,7 @@ describe("flussi principali Fudit", () => {
     for (const section of [
       "Spesa",
       "Ricette",
+      "Dieta",
       "Prezzi",
       "Impostazioni",
       "Pianifica",

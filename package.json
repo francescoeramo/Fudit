@@ -16,6 +16,7 @@
     "@tailwindcss/postcss": "latest",
     "lucide-react": "latest",
     "next": "latest",
+    "pdfjs-dist": "^6.1.200",
     "react": "latest",
     "react-dom": "latest",
     "tailwindcss": "latest",

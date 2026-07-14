@@ -17,7 +17,12 @@ export type Category =
   | "Dispensa"
   | "Surgelati"
   | "Altro";
-export type MealSlot = "pranzo" | "cena";
+export type MealSlot =
+  | "colazione"
+  | "spuntino"
+  | "pranzo"
+  | "merenda"
+  | "cena";
 export type FoodStyle =
   | "veloci"
   | "economici"
@@ -90,6 +95,8 @@ export interface MealPlan {
   people?: number;
   budget?: number;
   weekKey?: string;
+  source?: "generated" | "diet-pdf";
+  name?: string;
 }
 
 export type PlanRetention = 7 | 15 | 30 | 60 | "never";
