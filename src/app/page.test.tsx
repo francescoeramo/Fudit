@@ -2,6 +2,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { recipes, seedPrices } from "@/lib/seed";
 import Home from "./page";
 beforeEach(() => {
   localStorage.clear();
@@ -14,6 +15,7 @@ describe("flussi principali Fudit", () => {
   it("genera e naviga in tutte le sezioni", async () => {
     render(<Home />);
     await screen.findByText("Il tuo piano");
+    expect(screen.getByRole("option", { name: "MD" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Genera piano" }));
     expect(await screen.findByText("Lun")).toBeInTheDocument();
     for (const section of [
@@ -125,5 +127,33 @@ describe("flussi principali Fudit", () => {
     await waitFor(() =>
       expect(localStorage.getItem("fudit:plan-retention")).toBe("15"),
     );
+  });
+
+  it("mostra il prezzo per porzione solo dopo piano e prezzi reali", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+    await screen.findByText("Il tuo piano");
+    await user.click(screen.getByRole("button", { name: "Ricette" }));
+    const recipeCard = screen.getByText(recipes[0].title).closest("article")!;
+    expect(recipeCard.querySelector(".recipe-price.pending")).toHaveTextContent(
+      "genera un piano",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Pianifica" }));
+    await user.click(screen.getByRole("button", { name: "Genera piano" }));
+    await user.click(screen.getByRole("button", { name: "Prezzi" }));
+    for (const ingredient of recipes[0].ingredients) {
+      const price = seedPrices.find((item) => item.id === ingredient.id)!;
+      fireEvent.change(screen.getByLabelText(`prezzo ${price.name}`), {
+        target: { value: "2" },
+      });
+    }
+    await user.click(screen.getByRole("button", { name: "Ricette" }));
+    const confirmedCard = screen
+      .getByText(recipes[0].title)
+      .closest("article")!;
+    expect(
+      confirmedCard.querySelector(".recipe-price.confirmed"),
+    ).toHaveTextContent("prezzi reali");
   });
 });

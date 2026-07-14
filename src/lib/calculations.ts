@@ -27,8 +27,34 @@ export const storeUnitPrice = (
   date = new Date(),
 ) =>
   roundMoney(
-    (item.stores[store] ?? item.price) * weeklyPriceFactor(item, store, date),
+    item.confirmedStores?.[store]
+      ? (item.stores[store] ?? item.price)
+      : (item.stores[store] ?? item.price) *
+          weeklyPriceFactor(item, store, date),
   );
+
+export const confirmedPriceCoverage = (
+  recipe: Recipe,
+  catalog: PriceItem[],
+  store: Store,
+) => {
+  const ingredientIds = [...new Set(recipe.ingredients.map((item) => item.id))];
+  const confirmed = ingredientIds.filter((id) => {
+    const item = catalog.find((price) => price.id === id);
+    return Boolean(
+      item &&
+      item.per > 0 &&
+      item.confirmedStores?.[store] &&
+      Number.isFinite(item.stores[store]) &&
+      Number(item.stores[store]) > 0,
+    );
+  }).length;
+  return {
+    confirmed,
+    total: ingredientIds.length,
+    complete: ingredientIds.length > 0 && confirmed === ingredientIds.length,
+  };
+};
 export const scaleIngredients = (
   ingredients: Ingredient[],
   base: number,
@@ -61,6 +87,16 @@ export const recipeCost = (
       0,
     ),
   );
+
+export const confirmedRecipeCost = (
+  recipe: Recipe,
+  catalog: PriceItem[],
+  store: Store,
+  people: number,
+): number | null =>
+  people > 0 && confirmedPriceCoverage(recipe, catalog, store).complete
+    ? recipeCost(recipe, catalog, store, people)
+    : null;
 export const aggregateShopping = (
   recipes: Recipe[],
   catalog: PriceItem[],

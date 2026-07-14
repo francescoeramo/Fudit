@@ -16,9 +16,10 @@ const storesFor = (base: number) => ({
   Contè: +(base * 0.94).toFixed(2),
   Despar: +(base * 1.06).toFixed(2),
   Penny: +(base * 0.89).toFixed(2),
+  MD: +(base * 0.88).toFixed(2),
   Altro: base,
 });
-export const seedPrices: PriceItem[] = [
+const rawSeedPrices: PriceItem[] = [
   {
     id: "pasta",
     name: "Pasta integrale",
@@ -529,6 +530,14 @@ export const seedPrices: PriceItem[] = [
     stores: storesFor(1.49),
   },
 ];
+
+export const seedPrices: PriceItem[] = rawSeedPrices.map((item) => ({
+  ...item,
+  stores: {
+    ...item.stores,
+    MD: item.stores.MD ?? +(item.price * 0.88).toFixed(2),
+  },
+}));
 const ing = (id: string, quantity: number, unit: "g" | "ml" | "pz" = "g") => {
   const p = seedPrices.find((x) => x.id === id)!;
   return {

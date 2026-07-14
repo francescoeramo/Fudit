@@ -17,12 +17,12 @@ import {
 } from "lucide-react";
 import {
   aggregateShopping,
+  confirmedPriceCoverage,
+  confirmedRecipeCost,
   getWeekKey,
-  recipeCost,
   roundMoney,
   scaleIngredients,
   storeUnitPrice,
-  weeklyPriceFactor,
 } from "@/lib/calculations";
 import { categorizeFood } from "@/lib/food";
 import { createPlan } from "@/lib/planner";
@@ -40,6 +40,7 @@ import {
   PlanRetention,
   Preferences,
   PriceItem,
+  Recipe,
   ShoppingItem,
   Store,
 } from "@/lib/types";
@@ -54,6 +55,7 @@ const stores: Store[] = [
   "Contè",
   "Despar",
   "Penny",
+  "MD",
   "Altro",
 ];
 const styles: FoodStyle[] = [
@@ -304,6 +306,32 @@ export default function Home() {
     );
   };
   const planStore = plan?.store ?? prefs.store;
+  const recipePrice = (recipe: Recipe) => {
+    if (!plan)
+      return (
+        <div className="recipe-price pending">
+          <strong>—</strong>
+          <small>genera un piano</small>
+        </div>
+      );
+    const coverage = confirmedPriceCoverage(recipe, catalog, planStore);
+    const cost = confirmedRecipeCost(recipe, catalog, planStore, prefs.people);
+    if (cost === null)
+      return (
+        <div className="recipe-price pending">
+          <strong>—</strong>
+          <small>
+            {coverage.confirmed}/{coverage.total} prezzi reali
+          </small>
+        </div>
+      );
+    return (
+      <div className="recipe-price confirmed">
+        <strong>€ {(cost / prefs.people).toFixed(2)}</strong>
+        <small>/porzione · prezzi reali</small>
+      </div>
+    );
+  };
   const generate = () => {
     if (prefs.people <= 0 || prefs.budget <= 0) {
       setNotice("Inserisci un budget e un numero di persone maggiori di zero.");
@@ -445,6 +473,10 @@ export default function Home() {
                 ? {
                     ...item,
                     stores: { ...item.stores, [planStore]: row.price },
+                    confirmedStores: {
+                      ...item.confirmedStores,
+                      [planStore]: row.price > 0,
+                    },
                     price: row.price,
                     category: categorizeFood(row.name, item.category),
                   }
@@ -461,6 +493,7 @@ export default function Home() {
                 allergens: [],
                 nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
                 stores: { [planStore]: row.price },
+                confirmedStores: { [planStore]: row.price > 0 },
               },
               ...next,
             ];
@@ -854,21 +887,44 @@ export default function Home() {
                               ? i.estimatedCost
                               : 0
                           }
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const totalCost = roundMoney(
+                              Math.min(
+                                10000,
+                                Math.max(0, +e.target.value || 0),
+                              ),
+                            );
                             setShopping((s) =>
                               s.map((x) =>
                                 x.id === i.id
                                   ? {
                                       ...x,
-                                      estimatedCost: Math.min(
-                                        10000,
-                                        Math.max(0, +e.target.value || 0),
-                                      ),
+                                      estimatedCost: totalCost,
                                     }
                                   : x,
                               ),
-                            )
-                          }
+                            );
+                            if (!i.manual && i.quantity > 0)
+                              setCatalog((current) =>
+                                current.map((item) =>
+                                  item.id === i.id
+                                    ? {
+                                        ...item,
+                                        stores: {
+                                          ...item.stores,
+                                          [planStore]: roundMoney(
+                                            (totalCost * item.per) / i.quantity,
+                                          ),
+                                        },
+                                        confirmedStores: {
+                                          ...item.confirmedStores,
+                                          [planStore]: totalCost > 0,
+                                        },
+                                      }
+                                    : item,
+                                ),
+                              );
+                          }}
                         />
                         <button
                           aria-label={`Elimina ${i.name}`}
@@ -969,15 +1025,7 @@ export default function Home() {
                       {r.time} min · {r.difficulty}
                     </p>
                   </div>
-                  <strong>
-                    {prefs.people > 0
-                      ? `€ ${(
-                          recipeCost(r, catalog, prefs.store, prefs.people) /
-                          prefs.people
-                        ).toFixed(2)}`
-                      : "—"}
-                    <small>/porz.</small>
-                  </strong>
+                  {recipePrice(r)}
                 </div>
                 <div className="tag-row">
                   {r.tags.map((t) => (
@@ -1044,7 +1092,7 @@ export default function Home() {
               <div className="store-context">
                 <CircleDollarSign size={22} />
                 <div>
-                  <span>Listino settimanale stimato</span>
+                  <span>Listino del piano</span>
                   <strong>{planStore}</strong>
                   <small>Settimana del {plan.weekKey ?? getWeekKey()}</small>
                 </div>
@@ -1053,7 +1101,9 @@ export default function Home() {
                 <div>
                   <h2>Prezzi ingredienti</h2>
                   <p className="muted">
-                    Stime locali specifiche per insegna, aggiornate ogni lunedì.
+                    I prezzi confermati manualmente o tramite scontrino sono
+                    usati per il costo reale per porzione. Gli altri restano
+                    valori dimostrativi.
                   </p>
                 </div>
                 <button
@@ -1095,7 +1145,20 @@ export default function Home() {
                       )
                     }
                   />
-                  <span className="muted">{p.category}</span>
+                  <span className="catalog-meta">
+                    <span>{p.category}</span>
+                    <small
+                      className={
+                        p.confirmedStores?.[planStore]
+                          ? "price-confirmed"
+                          : "price-demo"
+                      }
+                    >
+                      {p.confirmedStores?.[planStore]
+                        ? "Prezzo reale"
+                        : "Dimostrativo"}
+                    </small>
+                  </span>
                   <input
                     aria-label={"prezzo " + p.name}
                     type="number"
@@ -1115,8 +1178,12 @@ export default function Home() {
                                     Math.min(
                                       10000,
                                       Math.max(0, +e.target.value || 0),
-                                    ) / weeklyPriceFactor(x, planStore),
+                                    ),
                                   ),
+                                },
+                                confirmedStores: {
+                                  ...x.confirmedStores,
+                                  [planStore]: +e.target.value > 0,
                                 },
                               }
                             : x,

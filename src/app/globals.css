@@ -246,3 +246,63 @@
     flex-wrap: wrap;
   }
 }
+
+.recipe-price {
+  flex: 0 0 auto;
+  max-width: 132px;
+  text-align: right;
+  display: grid;
+  gap: 2px;
+}
+
+.recipe-price strong {
+  color: var(--coral);
+  font-size: 17px;
+  white-space: nowrap;
+}
+
+.recipe-price small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.recipe-price.pending strong {
+  color: var(--muted);
+}
+
+.catalog-meta {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.catalog-meta small {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 3px 7px;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.price-confirmed {
+  color: #146b43;
+  background: #dcf6e7;
+}
+
+.dark .price-confirmed {
+  color: #a7ebc3;
+  background: #194733;
+}
+
+.price-demo {
+  color: #76521d;
+  background: #fff0d7;
+}
+
+.dark .price-demo {
+  color: #f1c77f;
+  background: #4e3b1d;
+}

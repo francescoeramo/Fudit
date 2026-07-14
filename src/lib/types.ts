@@ -8,6 +8,7 @@ export type Store =
   | "Contè"
   | "Despar"
   | "Penny"
+  | "MD"
   | "Altro";
 export type Category =
   | "Frutta e verdura"
@@ -51,6 +52,7 @@ export interface PriceItem {
   allergens: string[];
   nutrition: Nutrition;
   stores: Partial<Record<Store, number>>;
+  confirmedStores?: Partial<Record<Store, boolean>>;
 }
 export interface Recipe {
   id: string;

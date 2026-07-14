@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   aggregateShopping,
+  confirmedPriceCoverage,
+  confirmedRecipeCost,
   recipeCost,
   scaleIngredients,
   storeUnitPrice,
@@ -78,9 +80,37 @@ describe("Fudit planning", () => {
     expect(storeUnitPrice(item, "Lidl", new Date("2026-07-14"))).not.toBe(
       storeUnitPrice(item, "Despar", new Date("2026-07-14")),
     );
+    expect(storeUnitPrice(item, "MD", new Date("2026-07-14"))).toBeGreaterThan(
+      0,
+    );
     expect(storeUnitPrice(item, "Lidl", new Date("2026-07-14"))).not.toBe(
       storeUnitPrice(item, "Lidl", new Date("2026-07-21")),
     );
+  });
+  it("calcola il prezzo reale solo con tutti gli ingredienti confermati", () => {
+    const recipe = recipes[0];
+    expect(confirmedRecipeCost(recipe, seedPrices, "Lidl", 2)).toBeNull();
+    const confirmedCatalog = seedPrices.map((item) =>
+      recipe.ingredients.some((ingredient) => ingredient.id === item.id)
+        ? {
+            ...item,
+            stores: { ...item.stores, Lidl: 2 },
+            confirmedStores: { ...item.confirmedStores, Lidl: true },
+          }
+        : item,
+    );
+    expect(confirmedPriceCoverage(recipe, confirmedCatalog, "Lidl")).toEqual({
+      confirmed: recipe.ingredients.length,
+      total: recipe.ingredients.length,
+      complete: true,
+    });
+    expect(confirmedRecipeCost(recipe, confirmedCatalog, "Lidl", 2)).toBe(
+      recipeCost(recipe, confirmedCatalog, "Lidl", 2),
+    );
+    const first = confirmedCatalog.find(
+      (item) => item.id === recipe.ingredients[0].id,
+    )!;
+    expect(storeUnitPrice(first, "Lidl", new Date("2026-07-14"))).toBe(2);
   });
   it("contiene almeno 73 ricette", () =>
     expect(recipes.length).toBeGreaterThanOrEqual(73));
