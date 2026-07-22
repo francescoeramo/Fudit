@@ -8,7 +8,7 @@ import {
 } from "./types";
 
 export const STORAGE_KEY = "fudit:data";
-export const STORAGE_VERSION = 4;
+export const STORAGE_VERSION = 5;
 export const MAX_STORED_BYTES = 4_500_000;
 
 export interface AppStorageData {
@@ -53,6 +53,16 @@ const copyPreferences = (prefs: Preferences): Preferences => ({
   allergies: [...prefs.allergies],
 });
 
+const safeHttpsUrl = (value: unknown) => {
+  if (typeof value !== "string") return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 const migratePrice = (item: PriceItem): PriceItem => ({
   ...item,
   packageQuantity:
@@ -67,10 +77,46 @@ const migratePrice = (item: PriceItem): PriceItem => ({
     item.priceUpdatedAt && typeof item.priceUpdatedAt === "object"
       ? item.priceUpdatedAt
       : {},
+  priceSources: item.priceSources
+    ? Object.fromEntries(
+        Object.entries(item.priceSources).map(([store, source]) => [
+          store,
+          source
+            ? {
+                ...source,
+                label:
+                  typeof source.label === "string"
+                    ? source.label.slice(0, 240)
+                    : undefined,
+                sourceUrl: safeHttpsUrl(source.sourceUrl),
+              }
+            : source,
+        ]),
+      )
+    : {},
 });
 
 const migratePlan = (plan: MealPlan, prefs: Preferences): MealPlan => ({
   ...plan,
+  meals: plan.meals
+    .filter(
+      (meal) =>
+        isRecord(meal) &&
+        Number.isInteger(meal.day) &&
+        Number(meal.day) >= 0 &&
+        Number(meal.day) <= 6 &&
+        typeof meal.slot === "string" &&
+        typeof meal.recipeId === "string" &&
+        Number.isFinite(meal.cost),
+    )
+    .map((meal) => ({
+      ...meal,
+      regenerationHistory: Array.isArray(meal.regenerationHistory)
+        ? meal.regenerationHistory
+            .filter((id): id is string => typeof id === "string")
+            .slice(-100)
+        : undefined,
+    })),
   source: plan.source ?? "generated",
   preferences:
     plan.preferences ??
@@ -170,8 +216,9 @@ const migrateEnvelope = (
       "Il backup proviene da una versione più recente di Fudit. Aggiorna l’app prima di importarlo.",
     );
 
-  // V2 aggiunge metadati e preferenze; V3 la provenienza; V4 le confezioni per insegna.
-  if (![1, 2, 3, 4].includes(Number(envelope.version)))
+  // V2 aggiunge metadati e preferenze; V3 la provenienza; V4 le confezioni;
+  // V5 conserva la cronologia di rigenerazione e bonifica gli URL importati.
+  if (![1, 2, 3, 4, 5].includes(Number(envelope.version)))
     throw new Error("Questa versione del backup non è più supportata.");
   return {
     app: "Fudit",

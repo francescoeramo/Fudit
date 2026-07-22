@@ -45,3 +45,11 @@ export const mealFamilies = (recipe: Recipe): string[] => {
   if (ids.has("tofu")) families.push("soia");
   return families;
 };
+
+const pantryStaples = new Set(["cipolle", "olive"]);
+
+/** Ingredienti che devono ruotare nella settimana; esclude solo i condimenti. */
+export const mealVarietyKeys = (recipe: Recipe): string[] =>
+  [...new Set(recipe.ingredients.map((item) => item.id))].filter(
+    (id) => !pantryStaples.has(id),
+  );

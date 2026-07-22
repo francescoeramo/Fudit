@@ -33,6 +33,25 @@ test("carica i prezzi MD dal catalogo pubblico Supabase", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("carica i prezzi Despar Centro Sud dal catalogo pubblico", async ({
+  page,
+}) => {
+  await page.getByLabel("Supermercato").selectOption("Despar");
+  await page.getByRole("button", { name: "Genera piano" }).click();
+  await expect(page.getByText("Piano creato", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Prezzi" }).click();
+  await expect(page.getByText(/Corato \(BA\).*ogni martedì/)).toBeVisible();
+  const importedSource = page
+    .getByText(/Catalogo ufficiale Despar a Casa/)
+    .first();
+  await expect(importedSource).toBeVisible();
+  await expect(
+    importedSource
+      .locator("xpath=ancestor::div[contains(@class, 'catalog-row')]")
+      .locator(".price-confirmed"),
+  ).toBeVisible();
+});
+
 test("conferme distruttive supportano annulla ed Escape", async ({ page }) => {
   await page.getByRole("button", { name: "Genera piano" }).click();
   await expect(page.getByText("Piano creato", { exact: false })).toBeVisible();

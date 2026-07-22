@@ -33,7 +33,7 @@ export default function SettingsSection({
     <section className="card">
       <h2>Dati locali</h2>
       <p className="muted">
-        I dati restano in questo browser e usano il formato Fudit v3. Esporta
+        I dati restano in questo browser e usano il formato Fudit v5. Esporta
         periodicamente un backup per poterli ripristinare.
       </p>
       <div className="backup-actions">

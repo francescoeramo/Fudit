@@ -10,6 +10,12 @@ import {
 } from "@/lib/calculations";
 import { defaultPreferences } from "@/lib/config";
 import {
+  desparPriceSyncConfigured,
+  DesparRemotePrice,
+  fetchDesparPrices,
+  mergeDesparPrices,
+} from "@/lib/despar-prices";
+import {
   fetchMdPrices,
   mdPriceSyncConfigured,
   MdRemotePrice,
@@ -37,6 +43,7 @@ interface FuditState extends AppStorageData {
   storageError: string;
   generationStatus: "idle" | "generating" | "success" | "error";
   mdPriceError: string;
+  desparPriceError: string;
 }
 
 type SetAction = {
@@ -49,6 +56,7 @@ type Action =
   | SetAction
   | { type: "hydrate"; data: AppStorageData; error?: string }
   | { type: "merge-md-prices"; prices: MdRemotePrice[] }
+  | { type: "merge-despar-prices"; prices: DesparRemotePrice[] }
   | { type: "prune"; retention: PlanRetention }
   | { type: "reprice-plans" }
   | { type: "reprice-shopping" };
@@ -78,7 +86,10 @@ const mergeCatalogWithSeeds = (stored: PriceItem[]): PriceItem[] => [
 ];
 
 const hydrate = (data: AppStorageData): AppStorageData => {
-  const catalog = mergeMdPrices(mergeCatalogWithSeeds(data.catalog), []);
+  const catalog = mergeDesparPrices(
+    mergeMdPrices(mergeCatalogWithSeeds(data.catalog), []),
+    [],
+  );
   const dietRecipes = data.dietRecipes.filter(
     (recipe) =>
       recipe &&
@@ -125,6 +136,7 @@ const initialState: FuditState = {
   storageError: "",
   generationStatus: "idle",
   mdPriceError: "",
+  desparPriceError: "",
 };
 
 const reducer = (state: FuditState, action: Action): FuditState => {
@@ -150,6 +162,12 @@ const reducer = (state: FuditState, action: Action): FuditState => {
       ...state,
       catalog: mergeMdPrices(state.catalog, action.prices),
       mdPriceError: "",
+    };
+  if (action.type === "merge-despar-prices")
+    return {
+      ...state,
+      catalog: mergeDesparPrices(state.catalog, action.prices),
+      desparPriceError: "",
     };
   if (action.type === "prune") {
     const plans = prunePlans(state.plans, action.retention);
@@ -286,6 +304,28 @@ export function useFuditStore() {
             reason instanceof Error
               ? reason.message
               : "Aggiornamento prezzi MD non riuscito.",
+        });
+      });
+    return () => controller.abort();
+  }, [state.ready]);
+
+  useEffect(() => {
+    if (!state.ready || !desparPriceSyncConfigured) return;
+    const controller = new AbortController();
+    fetchDesparPrices(controller.signal)
+      .then((prices) => {
+        if (!controller.signal.aborted)
+          dispatch({ type: "merge-despar-prices", prices });
+      })
+      .catch((reason) => {
+        if (controller.signal.aborted) return;
+        dispatch({
+          type: "set",
+          key: "desparPriceError",
+          value:
+            reason instanceof Error
+              ? reason.message
+              : "Aggiornamento prezzi Despar non riuscito.",
         });
       });
     return () => controller.abort();

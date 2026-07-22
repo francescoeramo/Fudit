@@ -4,27 +4,20 @@ import {
   recipeCost,
   roundMoney,
 } from "./calculations";
-import { mealFamilies } from "./food";
-import { MealPlan, Preferences, PriceItem, Recipe } from "./types";
+import { recipeMatchesAllergy } from "./allergens";
+import { mealFamilies, mealVarietyKeys } from "./food";
+import { MealPlan, MealSlot, Preferences, PriceItem, Recipe } from "./types";
 export const isCompatible = (
   recipe: Recipe,
   prefs: Preferences,
   catalog: PriceItem[] = [],
 ) => {
-  const avoid = prefs.allergies
-    .map((x) => x.toLowerCase().trim())
-    .filter(Boolean);
-  const labels = [
-    ...recipe.allergens,
-    ...recipe.ingredients.flatMap((i) => [i.name, ...(i.allergens ?? [])]),
-    ...recipe.ingredients.flatMap((i) => {
-      const p = catalog.find((x) => x.id === i.id);
-      return p ? [p.name, ...p.allergens] : [];
-    }),
-  ]
-    .join(" ")
-    .toLowerCase();
-  if (avoid.some((word) => labels.includes(word))) return false;
+  if (
+    prefs.allergies.some((allergy) =>
+      recipeMatchesAllergy(recipe, allergy, catalog),
+    )
+  )
+    return false;
   const strict = prefs.styles.filter((s) =>
     ["vegetariani", "vegani", "senza glutine", "senza lattosio"].includes(s),
   );
@@ -74,6 +67,9 @@ const bestCombinationWithinBudget = (
     Math.max(3, Math.ceil(slots / candidates.length) + 2),
   );
   const maximumCost = Math.max(...candidates.map(({ cost }) => cost));
+  const candidateById = new Map(
+    candidates.map((candidate) => [candidate.recipe.id, candidate]),
+  );
   let states = Array.from(
     { length: slots + 1 },
     () => new Map<number, CombinationState>(),
@@ -95,6 +91,30 @@ const bestCombinationWithinBudget = (
           const uniqueRecipeBonus = 500;
           const preferenceBonus = candidate.preferenceScore * 1_000 * uses;
           const varietyPenalty = (uses - 1) * (uses - 1) * 180;
+          const ingredientUses = new Map<string, number>();
+          state.selections.forEach((selectedUses, recipeId) => {
+            const selected = candidateById.get(recipeId);
+            if (!selected) return;
+            mealVarietyKeys(selected.recipe).forEach((key) =>
+              ingredientUses.set(
+                key,
+                (ingredientUses.get(key) ?? 0) + selectedUses,
+              ),
+            );
+          });
+          const ingredientPenalty = mealVarietyKeys(candidate.recipe).reduce(
+            (penalty, key) => {
+              const previous = ingredientUses.get(key) ?? 0;
+              let nextPenalty = penalty;
+              for (let occurrence = 1; occurrence <= uses; occurrence += 1) {
+                const weeklyUse = previous + occurrence;
+                if (weeklyUse > 2)
+                  nextPenalty += (weeklyUse - 2) * (weeklyUse - 2) * 260;
+              }
+              return nextPenalty;
+            },
+            0,
+          );
           const budgetEfficiency = Math.round(
             (maximumCost - candidate.cost) * 10 * uses,
           );
@@ -103,7 +123,8 @@ const bestCombinationWithinBudget = (
             uniqueRecipeBonus +
             preferenceBonus +
             budgetEfficiency -
-            varietyPenalty;
+            varietyPenalty -
+            ingredientPenalty;
           const target = next[count + uses].get(nextSpent);
           if (!target || score > target.score) {
             const selections = new Map(state.selections);
@@ -124,6 +145,120 @@ const bestCombinationWithinBudget = (
   return [...best.selections.entries()].flatMap(([id, uses]) =>
     Array.from({ length: uses }, () => id),
   );
+};
+
+const stableHash = (value: string) =>
+  [...value].reduce(
+    (hash, character) => (hash * 31 + character.charCodeAt(0)) >>> 0,
+    2166136261,
+  );
+
+export const chooseReplacementRecipe = ({
+  recipes,
+  catalog,
+  preferences,
+  plan,
+  day,
+  slot,
+}: {
+  recipes: Recipe[];
+  catalog: PriceItem[];
+  preferences: Preferences;
+  plan: MealPlan;
+  day: number;
+  slot: MealSlot;
+}): { recipe: Recipe; cost: number; history: string[] } | null => {
+  const currentMeal = plan.meals.find(
+    (meal) => meal.day === day && meal.slot === slot,
+  );
+  if (!currentMeal) return null;
+
+  const previousHistory = currentMeal.regenerationHistory ?? [];
+  const history = [...new Set([...previousHistory, currentMeal.recipeId])];
+  const compatible = recipes.filter((recipe) =>
+    isCompatible(recipe, preferences, catalog),
+  );
+  let candidates = compatible.filter((recipe) => !history.includes(recipe.id));
+  let nextHistory = history;
+  if (!candidates.length) {
+    candidates = compatible.filter(
+      (recipe) => recipe.id !== currentMeal.recipeId,
+    );
+    nextHistory = [currentMeal.recipeId];
+  }
+  if (!candidates.length) return null;
+
+  const recipeById = new Map(recipes.map((recipe) => [recipe.id, recipe]));
+  const otherMeals = plan.meals.filter(
+    (meal) => meal.day !== day || meal.slot !== slot,
+  );
+  const weeklyIngredientUses = new Map<string, number>();
+  otherMeals.forEach((meal) => {
+    const recipe = recipeById.get(meal.recipeId);
+    if (!recipe) return;
+    mealVarietyKeys(recipe).forEach((key) =>
+      weeklyIngredientUses.set(key, (weeklyIngredientUses.get(key) ?? 0) + 1),
+    );
+  });
+  const nearbyRecipes = otherMeals
+    .filter((meal) => Math.abs(meal.day - day) <= 1)
+    .map((meal) => recipeById.get(meal.recipeId))
+    .filter((recipe): recipe is Recipe => recipe !== undefined);
+  const spentElsewhere = otherMeals.reduce(
+    (total, meal) => total + meal.cost,
+    0,
+  );
+  const availableBudget = Math.max(0, preferences.budget - spentElsewhere);
+
+  const ranked = candidates
+    .map((recipe) => {
+      const cost = recipeCost(
+        recipe,
+        catalog,
+        preferences.store,
+        preferences.people,
+        new Date(plan.weekKey ?? plan.createdAt),
+      );
+      const keys = new Set(mealVarietyKeys(recipe));
+      const families = new Set(mealFamilies(recipe));
+      const weeklyReuse = [...keys].reduce(
+        (total, key) => total + (weeklyIngredientUses.get(key) ?? 0),
+        0,
+      );
+      const nearbyOverlap = nearbyRecipes.reduce(
+        (total, nearby) =>
+          total +
+          mealVarietyKeys(nearby).filter((key) => keys.has(key)).length * 8 +
+          mealFamilies(nearby).filter((family) => families.has(family)).length *
+            14,
+        0,
+      );
+      const duplicateRecipe = otherMeals.filter(
+        (meal) => meal.recipeId === recipe.id,
+      ).length;
+      const preferenceBonus = preferences.styles.filter((style) =>
+        recipe.tags.includes(style),
+      ).length;
+      const overBudgetPenalty = Math.max(0, cost - availableBudget) * 100;
+      const tieBreaker =
+        stableHash(
+          `${plan.id}:${day}:${slot}:${nextHistory.join(",")}:${recipe.id}`,
+        ) % 1000;
+      const score =
+        duplicateRecipe * 120 +
+        weeklyReuse * 18 +
+        nearbyOverlap +
+        overBudgetPenalty +
+        cost -
+        preferenceBonus * 25 +
+        tieBreaker / 1_000_000;
+      return { recipe, cost, score };
+    })
+    .sort((left, right) => left.score - right.score);
+  const chosen = ranked[0];
+  return chosen
+    ? { recipe: chosen.recipe, cost: chosen.cost, history: nextHistory }
+    : null;
 };
 
 const orderCombination = (

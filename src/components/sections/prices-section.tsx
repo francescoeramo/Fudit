@@ -34,6 +34,7 @@ export default function PricesSection({
   onAddItem,
   setCatalog,
   mdPriceError,
+  desparPriceError,
 }: {
   plan: MealPlan | null;
   plans: MealPlan[];
@@ -43,6 +44,7 @@ export default function PricesSection({
   onAddItem: () => void;
   setCatalog: Dispatch<SetStateAction<PriceItem[]>>;
   mdPriceError: string;
+  desparPriceError: string;
 }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<PriceStatus | "all">("all");
@@ -88,6 +90,16 @@ export default function PricesSection({
           {mdPriceError
             ? `Prezzi MD automatici non disponibili: ${mdPriceError}`
             : "I prezzi MD provengono dal volantino ufficiale Sud e vengono aggiornati ogni martedì. Prezzi manuali e da scontrino hanno la priorità."}
+        </p>
+      )}
+      {store === "Despar" && (
+        <p
+          className={desparPriceError ? "price-missing" : "muted"}
+          role="status"
+        >
+          {desparPriceError
+            ? `Prezzi Despar automatici non disponibili: ${desparPriceError}`
+            : "I prezzi Despar provengono dal catalogo ufficiale Despar a Casa di Corato (BA), rappresentativo del Sud Italia, e vengono aggiornati ogni martedì. Prezzi manuali e da scontrino hanno la priorità."}
         </p>
       )}
       <div className="section-heading">

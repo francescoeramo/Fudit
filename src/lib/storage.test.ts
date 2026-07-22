@@ -65,7 +65,7 @@ describe("storage Fudit versionato", () => {
       loaded.data.catalog[0].per,
     );
     expect(loaded.data.plans[0].preferences?.store).toBe("Lidl");
-    expect(STORAGE_VERSION).toBe(4);
+    expect(STORAGE_VERSION).toBe(5);
   });
 
   it("rifiuta backup futuri senza toccare i dati correnti", () => {

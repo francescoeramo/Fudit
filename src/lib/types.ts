@@ -93,6 +93,8 @@ export interface PlannedMeal {
   slot: MealSlot;
   recipeId: string;
   cost: number;
+  /** Ricette già scartate rigenerando questo singolo pasto. */
+  regenerationHistory?: string[];
 }
 export interface MealPlan {
   id: string;

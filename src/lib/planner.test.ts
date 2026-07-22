@@ -9,8 +9,8 @@ import {
   scaleIngredients,
   storeUnitPrice,
 } from "./calculations";
-import { mealFamilies } from "./food";
-import { createPlan, isCompatible } from "./planner";
+import { mealFamilies, mealVarietyKeys } from "./food";
+import { chooseReplacementRecipe, createPlan, isCompatible } from "./planner";
 import { recipes, seedPrices } from "./seed";
 import { Preferences, PriceItem, Recipe } from "./types";
 const prefs: Preferences = {
@@ -57,6 +57,68 @@ describe("Fudit planning", () => {
       ),
     ).toBe(true);
   });
+  it("riconosce anche sinonimi e allergeni impliciti nel nome", () => {
+    const walnutRecipe: Recipe = {
+      ...recipes[0],
+      id: "pesto-noci",
+      title: "Pasta al pesto di noci",
+      allergens: [],
+      ingredients: [
+        {
+          id: "pesto-noci",
+          name: "Pesto alle noci",
+          unit: "g",
+          quantity: 80,
+          category: "Dispensa",
+        },
+      ],
+    };
+    expect(
+      isCompatible(
+        walnutRecipe,
+        { ...prefs, allergies: ["frutta a guscio"] },
+        seedPrices,
+      ),
+    ).toBe(false);
+    expect(
+      isCompatible(
+        recipes.find((recipe) => recipe.id === "pasta-mozzarella")!,
+        { ...prefs, allergies: ["lattosio"] },
+        seedPrices,
+      ),
+    ).toBe(false);
+  });
+  it("non ripropone le stesse due ricette durante rigenerazioni consecutive", () => {
+    let plan = createPlan(recipes, seedPrices, { ...prefs, styles: [] });
+    const target = plan.meals[0];
+    const proposed: string[] = [];
+    for (let index = 0; index < 5; index += 1) {
+      const replacement = chooseReplacementRecipe({
+        recipes,
+        catalog: seedPrices,
+        preferences: plan.preferences!,
+        plan,
+        day: target.day,
+        slot: target.slot,
+      });
+      expect(replacement).not.toBeNull();
+      proposed.push(replacement!.recipe.id);
+      plan = {
+        ...plan,
+        meals: plan.meals.map((meal) =>
+          meal.day === target.day && meal.slot === target.slot
+            ? {
+                ...meal,
+                recipeId: replacement!.recipe.id,
+                cost: replacement!.cost,
+                regenerationHistory: replacement!.history,
+              }
+            : meal,
+        ),
+      };
+    }
+    expect(new Set(proposed).size).toBe(proposed.length);
+  });
   it("non ripete famiglie simili nello stesso giorno o nel precedente", () => {
     const plan = createPlan(recipes, seedPrices, {
       ...prefs,
@@ -76,6 +138,24 @@ describe("Fudit planning", () => {
         ),
       ).toBe(false);
     }
+  });
+  it("limita la ricorrenza degli ingredienti principali nella settimana", () => {
+    const plan = createPlan(recipes, seedPrices, {
+      ...prefs,
+      styles: [],
+      meals: ["pranzo", "cena"],
+      budget: 140,
+    });
+    const counts = new Map<string, number>();
+    plan.meals.forEach((meal) => {
+      const recipe = recipes.find(
+        (candidate) => candidate.id === meal.recipeId,
+      )!;
+      mealVarietyKeys(recipe).forEach((key) =>
+        counts.set(key, (counts.get(key) ?? 0) + 1),
+      );
+    });
+    expect(Math.max(...counts.values())).toBeLessThanOrEqual(4);
   });
   it("usa prezzi diversi per insegna e settimana", () => {
     const item = seedPrices[0];

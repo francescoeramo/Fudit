@@ -15,7 +15,7 @@ import RecipesSection from "@/components/sections/recipes-section";
 import PricesSection from "@/components/sections/prices-section";
 import SettingsSection from "@/components/sections/settings-section";
 import { BuiltDietPlan } from "@/lib/diet";
-import { createPlan } from "@/lib/planner";
+import { chooseReplacementRecipe, createPlan } from "@/lib/planner";
 import { prunePlans } from "@/lib/plans";
 import { recipes, seedPrices } from "@/lib/seed";
 import {
@@ -45,6 +45,7 @@ export default function Home() {
     storageError,
     generationStatus,
     mdPriceError,
+    desparPriceError,
     setTab,
     setDark,
     setPrefs,
@@ -175,29 +176,28 @@ export default function Home() {
       people: plan.people ?? prefs.people,
       budget: plan.budget ?? prefs.budget,
     };
-    const used = new Set(
-      plan.meals
-        .filter((m) => m.day === day && m.slot !== slot)
-        .map((m) => m.recipeId),
-    );
-    const candidates = recipes.filter(
-      (r) =>
-        !used.has(r.id) &&
-        r.id !==
-          plan.meals.find((m) => m.day === day && m.slot === slot)?.recipeId,
-    );
-    const next = createPlan(candidates, catalog, {
-      ...planPreferences,
-      meals: [slot as "pranzo" | "cena"],
+    const replacement = chooseReplacementRecipe({
+      recipes,
+      catalog,
+      preferences: planPreferences,
+      plan,
+      day,
+      slot: slot as "pranzo" | "cena",
     });
-    const meal = next.meals[0];
-    if (!meal) {
-      setNotice("Non ci sono alternative compatibili per questo pasto.");
+    if (!replacement) {
+      setNotice(
+        "Non ci sono alternative compatibili con allergie e preferenze per questo pasto.",
+      );
       return;
     }
     const meals = plan.meals.map((m) =>
       m.day === day && m.slot === slot
-        ? { ...m, recipeId: meal.recipeId, cost: meal.cost }
+        ? {
+            ...m,
+            recipeId: replacement.recipe.id,
+            cost: replacement.cost,
+            regenerationHistory: replacement.history,
+          }
         : m,
     );
     const total = roundMoney(meals.reduce((s, m) => s + m.cost, 0));
@@ -217,6 +217,9 @@ export default function Home() {
         planStore,
         plan.people ?? prefs.people,
       ),
+    );
+    setNotice(
+      `Pasto aggiornato con “${replacement.recipe.title}”. Le alternative già viste non verranno riproposte.`,
     );
   };
   const toggle = (style: FoodStyle) =>
@@ -482,6 +485,7 @@ export default function Home() {
           onAddItem={addCatalogItem}
           setCatalog={setCatalog}
           mdPriceError={mdPriceError}
+          desparPriceError={desparPriceError}
         />
       )}
       {tab === "settings" && (
