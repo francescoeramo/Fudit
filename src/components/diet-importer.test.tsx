@@ -13,7 +13,7 @@ const stores: Store[] = [
   "Coop",
   "Conad",
   "Vivo",
-  "Cont'è",
+  "Contè",
   "Despar",
   "Penny",
   "MD",

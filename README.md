@@ -1,29 +1,80 @@
 # Fudit
 
-Pianificatore pasti settimanale locale, gratuito e pronto per Vercel. I prezzi nel catalogo sono dati dimostrativi modificabili: l'app non effettua scraping né rileva prezzi reali.
+Fudit è un pianificatore settimanale di pasti e spesa, gratuito e orientato alla privacy. Funziona interamente nel browser, non richiede un account ed è pronto per il deploy su Vercel.
+
+I prezzi inclusi inizialmente sono dati dimostrativi modificabili: l'app non effettua scraping e distingue sempre valori confermati, stimati e mancanti.
+
+## Funzionalità
+
+- Generazione di piani settimanali entro un budget, con ottimizzazione globale della combinazione di ricette.
+- Preferenze per supermercato, numero di persone, pasti, stile alimentare, allergie e intolleranze.
+- Rigenerazione dei singoli pasti nel rispetto delle impostazioni originali del piano.
+- Catalogo prezzi con quantità della confezione, prezzo al kg/litro, origine e data di aggiornamento.
+- Lista della spesa modificabile, raggruppata per categoria e collegata al piano selezionato.
+- Ricerca e filtri per ricette e catalogo prezzi.
+- Importazione di diete da PDF.
+- Lettura OCR degli scontrini con correzione delle righe prima dell'importazione, suggerimenti di corrispondenza e segnalazione dei possibili duplicati.
+- Backup JSON esportabile e importabile, dati versionati e migrazioni automatiche.
+- Avvisi quando il browser non riesce a salvare o raggiunge il limite dello spazio locale.
+- Conferme per eliminazione dei piani e cancellazione completa dei dati.
+- Tema chiaro/scuro, navigazione da tastiera e layout mobile.
+
+## Architettura
+
+L'app usa Next.js e React. Le aree Pianificazione, Spesa, Ricette, Prezzi e Impostazioni sono componenti separati in `src/components/sections`; lo stato persistente è centralizzato nel reducer `src/hooks/use-fudit-store.ts`.
+
+I dati dell'utente restano nel `localStorage` del browser. Il formato corrente è Fudit v3 e viene gestito da `src/lib/storage.ts`.
 
 ## Avvio locale
+
+Richiede Node.js e npm.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Apri `http://localhost:3000`.
+Apri [http://localhost:3000](http://localhost:3000).
 
 ## Verifiche
 
 ```bash
-npm run test
+npm test
+npm run test:ocr
+npm run test:e2e
 npm run lint
 npm run build
 ```
 
+I test end-to-end usano Playwright. Al primo utilizzo potrebbe essere necessario installare Chromium:
+
+```bash
+npx playwright install chromium
+```
+
+## Corpus OCR
+
+Il repository include una raccolta riproducibile con due diete PDF e tre scontrini di difficoltà crescente, accompagnati dai risultati attesi:
+
+- `output/pdf/ocr-fixtures`
+- `tests/fixtures/ocr/receipts`
+
+Per rigenerarla:
+
+```bash
+python3 -m pip install -r scripts/requirements-ocr.txt
+npm run fixtures:ocr
+```
+
 ## Deploy Vercel
+
+Importa il repository nella dashboard Vercel scegliendo Next.js. Non sono necessarie variabili d'ambiente.
+
+In alternativa, con la CLI:
 
 ```bash
 npm i -g vercel
 vercel
 ```
 
-Oppure importa la repository dalla dashboard Vercel: framework Next.js, senza variabili d'ambiente necessarie. I dati sono nel `localStorage` del browser; Supabase può essere aggiunto in seguito sostituendo il modulo `src/lib/storage.ts`.
+Quando il progetto Vercel è collegato al branch `main`, ogni push avvia automaticamente una nuova build e il relativo deploy.

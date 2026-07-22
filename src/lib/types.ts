@@ -17,12 +17,7 @@ export type Category =
   | "Dispensa"
   | "Surgelati"
   | "Altro";
-export type MealSlot =
-  | "colazione"
-  | "spuntino"
-  | "pranzo"
-  | "merenda"
-  | "cena";
+export type MealSlot = "colazione" | "spuntino" | "pranzo" | "merenda" | "cena";
 export type FoodStyle =
   | "veloci"
   | "economici"
@@ -58,6 +53,15 @@ export interface PriceItem {
   nutrition: Nutrition;
   stores: Partial<Record<Store, number>>;
   confirmedStores?: Partial<Record<Store, boolean>>;
+  /** Quantità contenuta nella confezione. `per` resta per compatibilità. */
+  packageQuantity?: number;
+  priceUpdatedAt?: Partial<Record<Store, string>>;
+  priceSources?: Partial<Record<Store, PriceSource>>;
+}
+export interface PriceSource {
+  kind: "manual" | "receipt-ocr" | "diet-pdf" | "seed";
+  label?: string;
+  importedAt: string;
 }
 export interface Recipe {
   id: string;
@@ -97,11 +101,15 @@ export interface MealPlan {
   weekKey?: string;
   source?: "generated" | "diet-pdf";
   name?: string;
+  /** Snapshot delle preferenze usate per creare il piano. */
+  preferences?: Preferences;
 }
 
 export type PlanRetention = 7 | 15 | 30 | 60 | "never";
 export interface ShoppingItem extends Ingredient {
   estimatedCost: number;
+  priceStatus?: "confirmed" | "estimated" | "missing";
+  priceUpdatedAt?: string;
   checked?: boolean;
   manual?: boolean;
 }

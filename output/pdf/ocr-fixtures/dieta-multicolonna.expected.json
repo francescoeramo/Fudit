@@ -1,0 +1,9 @@
+{
+  "meals": [
+    "Mercoledì colazione: yogurt greco 170 g, avena 40 g",
+    "Mercoledì pranzo: pasta integrale 85 g, lenticchie 100 g",
+    "Giovedì cena: uova 2 pz, spinaci 180 g",
+    "Venerdì pranzo: riso basmati 90 g, tonno 120 g"
+  ],
+  "expected_count": 4
+}

@@ -256,10 +256,23 @@ export const buildDietPlan = ({
               : ingredient.unit === "ml"
                 ? 1000
                 : 500,
+          packageQuantity:
+            ingredient.unit === "pz"
+              ? 1
+              : ingredient.unit === "ml"
+                ? 1000
+                : 500,
           category: categorizeFood(ingredient.name),
           allergens: [],
           nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
           stores: { [store]: fallbackPrice },
+          priceSources: {
+            [store]: {
+              kind: "diet-pdf",
+              label: fileName.slice(0, 120),
+              importedAt: now.toISOString(),
+            },
+          },
         };
         nextCatalog.push(price);
         newPrices.push(price);

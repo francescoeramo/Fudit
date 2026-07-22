@@ -1,4 +1,5 @@
 import { Ingredient, PriceItem, Recipe, ShoppingItem, Store } from "./types";
+export type PriceStatus = "confirmed" | "estimated" | "missing";
 export const roundMoney = (value: number) =>
   Math.round((value + Number.EPSILON) * 100) / 100;
 export const roundQuantity = (value: number) =>
@@ -32,6 +33,57 @@ export const storeUnitPrice = (
       : (item.stores[store] ?? item.price) *
           weeklyPriceFactor(item, store, date),
   );
+
+export const packageQuantityFor = (item: PriceItem) =>
+  Number.isFinite(item.packageQuantity) && Number(item.packageQuantity) > 0
+    ? Number(item.packageQuantity)
+    : item.per;
+
+export const priceStatusFor = (
+  item: PriceItem | undefined,
+  store: Store,
+): PriceStatus => {
+  if (!item) return "missing";
+  const rawPrice = item.stores[store] ?? item.price;
+  if (!Number.isFinite(rawPrice) || Number(rawPrice) <= 0) return "missing";
+  return item.confirmedStores?.[store] ? "confirmed" : "estimated";
+};
+
+export const referencePriceFor = (
+  item: PriceItem,
+  store: Store,
+  date = new Date(),
+) => {
+  const packageQuantity = packageQuantityFor(item);
+  const packagePrice = storeUnitPrice(item, store, date);
+  const referenceQuantity = item.unit === "pz" ? 1 : 1000;
+  return packageQuantity > 0
+    ? roundMoney((packagePrice / packageQuantity) * referenceQuantity)
+    : 0;
+};
+
+export const priceCoverageFor = (
+  ingredients: Ingredient[],
+  catalog: PriceItem[],
+  store: Store,
+) => {
+  const uniqueIds = [...new Set(ingredients.map((item) => item.id))];
+  const counts = {
+    confirmed: 0,
+    estimated: 0,
+    missing: 0,
+    total: uniqueIds.length,
+  };
+  uniqueIds.forEach((id) => {
+    counts[
+      priceStatusFor(
+        catalog.find((item) => item.id === id),
+        store,
+      )
+    ] += 1;
+  });
+  return counts;
+};
 
 export const confirmedPriceCoverage = (
   recipe: Recipe,
@@ -71,8 +123,12 @@ export const priceFor = (
   date = new Date(),
 ) => {
   const p = catalog.find((x) => x.id === item.id);
-  if (!p || p.per <= 0) return 0;
-  return roundMoney((item.quantity / p.per) * storeUnitPrice(p, store, date));
+  const packageQuantity = p ? packageQuantityFor(p) : 0;
+  if (!p || packageQuantity <= 0 || priceStatusFor(p, store) === "missing")
+    return 0;
+  return roundMoney(
+    (item.quantity / packageQuantity) * storeUnitPrice(p, store, date),
+  );
 };
 export const recipeCost = (
   recipe: Recipe,
@@ -120,6 +176,13 @@ export const aggregateShopping = (
     ...i,
     quantity: roundQuantity(i.quantity),
     estimatedCost: priceFor(i, catalog, store),
+    priceStatus: priceStatusFor(
+      catalog.find((item) => item.id === i.id),
+      store,
+    ),
+    priceUpdatedAt: catalog.find((item) => item.id === i.id)?.priceUpdatedAt?.[
+      store
+    ],
     category: i.category,
   }));
 };

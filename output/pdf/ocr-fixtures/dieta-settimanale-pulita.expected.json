@@ -1,0 +1,9 @@
+{
+  "meals": [
+    "Lunedì pranzo: pasta integrale 80 g, pomodori 150 g",
+    "Lunedì cena: petto di pollo 180 g, zucchine 200 g",
+    "Martedì pranzo: riso basmati 90 g, ceci 120 g",
+    "Martedì cena: salmone 160 g, broccoli 220 g"
+  ],
+  "expected_count": 4
+}

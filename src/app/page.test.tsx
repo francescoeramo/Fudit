@@ -3,7 +3,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { recipes, seedPrices } from "@/lib/seed";
+import { STORAGE_KEY, StorageEnvelope } from "@/lib/storage";
 import Home from "./page";
+const storedData = () =>
+  (JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as StorageEnvelope)
+    .data;
 beforeEach(() => {
   localStorage.clear();
   let id = 0;
@@ -34,6 +38,7 @@ describe("flussi principali Fudit", () => {
     render(<Home />);
     await screen.findByText("Il tuo piano");
     await user.click(screen.getByRole("button", { name: "Genera piano" }));
+    await screen.findByText("Lun");
     await user.click(screen.getByRole("button", { name: "Spesa" }));
     await user.click(screen.getByTestId("add-shopping"));
     const name = screen.getByLabelText("Nome Nuovo elemento");
@@ -51,13 +56,14 @@ describe("flussi principali Fudit", () => {
     fireEvent.click(screen.getByLabelText("Cambia tema"));
     expect(document.querySelector("main")).toHaveClass("dark");
     fireEvent.click(screen.getByRole("button", { name: "Genera piano" }));
+    await screen.findByText("Lun");
     fireEvent.click(screen.getByRole("button", { name: "Prezzi" }));
     fireEvent.click(screen.getByTestId("add-catalog"));
     expect(screen.getByDisplayValue("Nuovo ingrediente")).toBeVisible();
     await waitFor(() =>
-      expect(localStorage.getItem("fudit:catalog")).toContain(
-        "Nuovo ingrediente",
-      ),
+      expect(
+        storedData().catalog.some((item) => item.name === "Nuovo ingrediente"),
+      ).toBe(true),
     );
   });
   it("consente di svuotare budget e persone e blocca la generazione a zero", async () => {
@@ -85,17 +91,16 @@ describe("flussi principali Fudit", () => {
     render(<Home />);
     await screen.findByText("Il tuo piano");
     await user.click(screen.getByRole("button", { name: "Genera piano" }));
+    await screen.findByText("Lun");
     await user.selectOptions(screen.getByRole("combobox"), "Despar");
     await user.click(screen.getByRole("button", { name: "Genera piano" }));
 
-    expect(
-      document.querySelectorAll(".plan-picker.cards .plan-option"),
-    ).toHaveLength(2);
     await waitFor(() =>
       expect(
-        JSON.parse(localStorage.getItem("fudit:plans") ?? "[]"),
+        document.querySelectorAll(".plan-picker.cards .plan-option"),
       ).toHaveLength(2),
     );
+    await waitFor(() => expect(storedData().plans).toHaveLength(2));
 
     await user.click(screen.getByRole("button", { name: "Spesa" }));
     expect(
@@ -125,9 +130,7 @@ describe("flussi principali Fudit", () => {
     await user.click(screen.getByRole("button", { name: "Impostazioni" }));
     const retention = screen.getByLabelText("Eliminazione automatica");
     await user.selectOptions(retention, "15");
-    await waitFor(() =>
-      expect(localStorage.getItem("fudit:plan-retention")).toBe("15"),
-    );
+    await waitFor(() => expect(storedData().retention).toBe(15));
   });
 
   it("mostra il prezzo per porzione solo dopo piano e prezzi reali", async () => {
@@ -142,6 +145,7 @@ describe("flussi principali Fudit", () => {
 
     await user.click(screen.getByRole("button", { name: "Pianifica" }));
     await user.click(screen.getByRole("button", { name: "Genera piano" }));
+    await screen.findByText("Lun");
     await user.click(screen.getByRole("button", { name: "Prezzi" }));
     for (const ingredient of recipes[0].ingredients) {
       const price = seedPrices.find((item) => item.id === ingredient.id)!;
@@ -156,5 +160,20 @@ describe("flussi principali Fudit", () => {
     expect(
       confirmedCard.querySelector(".recipe-price.confirmed"),
     ).toHaveTextContent("prezzi reali");
+  });
+
+  it("segnala quando il browser rifiuta il salvataggio", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+    await screen.findByText("Il tuo piano");
+    const storageSpy = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new DOMException("Quota esaurita", "QuotaExceededError");
+      });
+    await user.click(screen.getByLabelText("Cambia tema"));
+    expect(await screen.findByText("Modifiche non salvate")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent("Spazio del browser");
+    storageSpy.mockRestore();
   });
 });

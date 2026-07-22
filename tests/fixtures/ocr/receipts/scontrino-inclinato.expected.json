@@ -1,0 +1,21 @@
+{
+  "rows": [
+    {
+      "name": "RISO BASMATI 500G",
+      "price": 2.19
+    },
+    {
+      "name": "CECI BARATTOLO",
+      "price": 0.89
+    },
+    {
+      "name": "SALMONE 400G",
+      "price": 6.49
+    },
+    {
+      "name": "BROCCOLI",
+      "price": 1.69
+    }
+  ],
+  "expected_count": 4
+}

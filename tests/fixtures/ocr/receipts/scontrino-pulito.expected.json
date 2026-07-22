@@ -1,0 +1,21 @@
+{
+  "rows": [
+    {
+      "name": "PASTA INTEGRALE 500G",
+      "price": 1.29
+    },
+    {
+      "name": "YOGURT GRECO",
+      "price": 1.79
+    },
+    {
+      "name": "PETTO POLLO",
+      "price": 4.59
+    },
+    {
+      "name": "ZUCCHINE",
+      "price": 1.49
+    }
+  ],
+  "expected_count": 4
+}

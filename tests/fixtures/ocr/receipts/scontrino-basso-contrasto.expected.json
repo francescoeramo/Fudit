@@ -1,0 +1,21 @@
+{
+  "rows": [
+    {
+      "name": "UOVA BIO 6PZ",
+      "price": 2.69
+    },
+    {
+      "name": "AVENA 500G",
+      "price": 1.39
+    },
+    {
+      "name": "TONNO NATURALE",
+      "price": 2.39
+    },
+    {
+      "name": "UOVA BIO 6PZ",
+      "price": 2.69
+    }
+  ],
+  "expected_count": 4
+}

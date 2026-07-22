@@ -3,14 +3,16 @@ import {
   aggregateShopping,
   confirmedPriceCoverage,
   confirmedRecipeCost,
+  priceStatusFor,
   recipeCost,
+  referencePriceFor,
   scaleIngredients,
   storeUnitPrice,
 } from "./calculations";
 import { mealFamilies } from "./food";
 import { createPlan, isCompatible } from "./planner";
 import { recipes, seedPrices } from "./seed";
-import { Preferences } from "./types";
+import { Preferences, PriceItem, Recipe } from "./types";
 const prefs: Preferences = {
   store: "Lidl",
   budget: 100,
@@ -111,6 +113,102 @@ describe("Fudit planning", () => {
       (item) => item.id === recipe.ingredients[0].id,
     )!;
     expect(storeUnitPrice(first, "Lidl", new Date("2026-07-14"))).toBe(2);
+  });
+  it("costruisce una combinazione entro budget quando è matematicamente possibile", () => {
+    const cheapest = Math.min(
+      ...recipes.map((recipe) => recipeCost(recipe, seedPrices, "Lidl", 2)),
+    );
+    const budget = Number((cheapest * 7 + 0.01).toFixed(2));
+    const plan = createPlan(recipes, seedPrices, { ...prefs, budget });
+    expect(plan.total).toBeLessThanOrEqual(budget);
+    expect(plan.overBudget).toBe(false);
+    expect(plan.preferences).toEqual({ ...prefs, budget });
+  });
+  it("ottimizza globalmente le preferenze senza riempire ogni slot col pasto più economico", () => {
+    const makeRecipe = (
+      id: string,
+      title: string,
+      ingredient: string,
+      tags: Recipe["tags"],
+    ): Recipe => ({
+      id,
+      title,
+      time: 15,
+      difficulty: "Facile",
+      ingredients: [
+        {
+          id: ingredient,
+          name: ingredient,
+          unit: "g",
+          quantity: 100,
+          category: "Dispensa",
+        },
+      ],
+      steps: ["Prepara"],
+      nutrition: { calories: 100, protein: 10, carbs: 10, fat: 2 },
+      tags,
+      allergens: [],
+      baseServings: 1,
+    });
+    const customRecipes = [
+      makeRecipe("cheap", "Pasta economica", "pasta-test", []),
+      makeRecipe("preferred", "Pollo proteico", "pollo-test", ["high protein"]),
+    ];
+    const customCatalog: PriceItem[] = [
+      {
+        id: "pasta-test",
+        name: "Pasta test",
+        unit: "g",
+        price: 1,
+        per: 100,
+        packageQuantity: 100,
+        category: "Dispensa",
+        allergens: [],
+        nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+        stores: { Lidl: 1 },
+        confirmedStores: { Lidl: true },
+      },
+      {
+        id: "pollo-test",
+        name: "Pollo test",
+        unit: "g",
+        price: 3,
+        per: 100,
+        packageQuantity: 100,
+        category: "Carne e pesce",
+        allergens: [],
+        nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+        stores: { Lidl: 3 },
+        confirmedStores: { Lidl: true },
+      },
+    ];
+    const plan = createPlan(customRecipes, customCatalog, {
+      ...prefs,
+      people: 1,
+      budget: 13,
+      styles: ["high protein"],
+    });
+    expect(plan.total).toBeLessThanOrEqual(13);
+    expect(
+      plan.meals.filter((meal) => meal.recipeId === "preferred"),
+    ).toHaveLength(3);
+  });
+  it("distingue prezzi confermati, stimati e mancanti e calcola €/kg", () => {
+    const item = { ...seedPrices[0], packageQuantity: 500 };
+    expect(priceStatusFor(item, "Lidl")).toBe("estimated");
+    expect(
+      priceStatusFor(
+        {
+          ...item,
+          confirmedStores: { Lidl: true },
+        },
+        "Lidl",
+      ),
+    ).toBe("confirmed");
+    expect(priceStatusFor({ ...item, price: 0, stores: {} }, "Lidl")).toBe(
+      "missing",
+    );
+    expect(referencePriceFor(item, "Lidl")).toBeGreaterThan(0);
   });
   it("contiene almeno 73 ricette", () =>
     expect(recipes.length).toBeGreaterThanOrEqual(73));

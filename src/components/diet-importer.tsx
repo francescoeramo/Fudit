@@ -55,7 +55,7 @@ export const extractPdfText = async (
   });
   const document = await task.promise;
   let worker:
-    | Awaited<ReturnType<typeof import("tesseract.js")["createWorker"]>>
+    | Awaited<ReturnType<(typeof import("tesseract.js"))["createWorker"]>>
     | undefined;
   try {
     if (document.numPages > 30)
@@ -122,12 +122,8 @@ export default function DietImporter({
   onGenerated: (result: BuiltDietPlan) => void;
 }) {
   const [store, setStore] = useState<Store>(defaultStore);
-  const [people, setPeople] = useState<number | "">(
-    Math.max(1, defaultPeople),
-  );
-  const [budget, setBudget] = useState<number | "">(
-    Math.max(0, defaultBudget),
-  );
+  const [people, setPeople] = useState<number | "">(Math.max(1, defaultPeople));
+  const [budget, setBudget] = useState<number | "">(Math.max(0, defaultBudget));
   const [fileName, setFileName] = useState("");
   const [meals, setMeals] = useState<DietMealDraft[]>([]);
   const [busy, setBusy] = useState(false);
@@ -317,9 +313,7 @@ export default function DietImporter({
               onChange={(event) => {
                 const value = event.target.value;
                 setBudget(
-                  value === ""
-                    ? ""
-                    : Math.min(10000, Math.max(0, +value)),
+                  value === "" ? "" : Math.min(10000, Math.max(0, +value)),
                 );
               }}
             />
@@ -521,11 +515,7 @@ export default function DietImporter({
               ))}
             </div>
             <div className="diet-review-actions">
-              <button
-                type="button"
-                className="button alt"
-                onClick={addMeal}
-              >
+              <button type="button" className="button alt" onClick={addMeal}>
                 <Plus size={15} /> Aggiungi pasto
               </button>
               <button
