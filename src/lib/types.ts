@@ -55,13 +55,18 @@ export interface PriceItem {
   confirmedStores?: Partial<Record<Store, boolean>>;
   /** Quantità contenuta nella confezione. `per` resta per compatibilità. */
   packageQuantity?: number;
+  /** Quantità della confezione specifica per insegna. */
+  packageQuantities?: Partial<Record<Store, number>>;
   priceUpdatedAt?: Partial<Record<Store, string>>;
   priceSources?: Partial<Record<Store, PriceSource>>;
 }
 export interface PriceSource {
-  kind: "manual" | "receipt-ocr" | "diet-pdf" | "seed";
+  kind: "manual" | "receipt-ocr" | "diet-pdf" | "seed" | "scraped";
   label?: string;
   importedAt: string;
+  sourceUrl?: string;
+  validFrom?: string;
+  validTo?: string;
 }
 export interface Recipe {
   id: string;

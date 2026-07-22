@@ -9,6 +9,12 @@ import {
   roundMoney,
 } from "@/lib/calculations";
 import { defaultPreferences } from "@/lib/config";
+import {
+  fetchMdPrices,
+  mdPriceSyncConfigured,
+  MdRemotePrice,
+  mergeMdPrices,
+} from "@/lib/md-prices";
 import { prunePlans, uniquePlans, normalizeRetention } from "@/lib/plans";
 import { recipes, seedPrices } from "@/lib/seed";
 import { AppStorageData, loadAppStorage, saveAppStorage } from "@/lib/storage";
@@ -30,6 +36,7 @@ interface FuditState extends AppStorageData {
   notice: string;
   storageError: string;
   generationStatus: "idle" | "generating" | "success" | "error";
+  mdPriceError: string;
 }
 
 type SetAction = {
@@ -41,6 +48,7 @@ type SetAction = {
 type Action =
   | SetAction
   | { type: "hydrate"; data: AppStorageData; error?: string }
+  | { type: "merge-md-prices"; prices: MdRemotePrice[] }
   | { type: "prune"; retention: PlanRetention }
   | { type: "reprice-plans" }
   | { type: "reprice-shopping" };
@@ -70,7 +78,7 @@ const mergeCatalogWithSeeds = (stored: PriceItem[]): PriceItem[] => [
 ];
 
 const hydrate = (data: AppStorageData): AppStorageData => {
-  const catalog = mergeCatalogWithSeeds(data.catalog);
+  const catalog = mergeMdPrices(mergeCatalogWithSeeds(data.catalog), []);
   const dietRecipes = data.dietRecipes.filter(
     (recipe) =>
       recipe &&
@@ -116,6 +124,7 @@ const initialState: FuditState = {
   notice: "",
   storageError: "",
   generationStatus: "idle",
+  mdPriceError: "",
 };
 
 const reducer = (state: FuditState, action: Action): FuditState => {
@@ -135,6 +144,12 @@ const reducer = (state: FuditState, action: Action): FuditState => {
       ...hydrate(action.data),
       ready: true,
       storageError: action.error ?? "",
+    };
+  if (action.type === "merge-md-prices")
+    return {
+      ...state,
+      catalog: mergeMdPrices(state.catalog, action.prices),
+      mdPriceError: "",
     };
   if (action.type === "prune") {
     const plans = prunePlans(state.plans, action.retention);
@@ -253,6 +268,28 @@ export function useFuditStore() {
     );
     return () => window.clearInterval(interval);
   }, [state.ready, state.retention]);
+
+  useEffect(() => {
+    if (!state.ready || !mdPriceSyncConfigured) return;
+    const controller = new AbortController();
+    fetchMdPrices(controller.signal)
+      .then((prices) => {
+        if (!controller.signal.aborted)
+          dispatch({ type: "merge-md-prices", prices });
+      })
+      .catch((reason) => {
+        if (controller.signal.aborted) return;
+        dispatch({
+          type: "set",
+          key: "mdPriceError",
+          value:
+            reason instanceof Error
+              ? reason.message
+              : "Aggiornamento prezzi MD non riuscito.",
+        });
+      });
+    return () => controller.abort();
+  }, [state.ready]);
 
   useEffect(() => {
     if (!state.ready) return;

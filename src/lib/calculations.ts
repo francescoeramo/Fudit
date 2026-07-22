@@ -34,10 +34,14 @@ export const storeUnitPrice = (
           weeklyPriceFactor(item, store, date),
   );
 
-export const packageQuantityFor = (item: PriceItem) =>
-  Number.isFinite(item.packageQuantity) && Number(item.packageQuantity) > 0
-    ? Number(item.packageQuantity)
-    : item.per;
+export const packageQuantityFor = (item: PriceItem, store?: Store) =>
+  store &&
+  Number.isFinite(item.packageQuantities?.[store]) &&
+  Number(item.packageQuantities?.[store]) > 0
+    ? Number(item.packageQuantities?.[store])
+    : Number.isFinite(item.packageQuantity) && Number(item.packageQuantity) > 0
+      ? Number(item.packageQuantity)
+      : item.per;
 
 export const priceStatusFor = (
   item: PriceItem | undefined,
@@ -54,7 +58,7 @@ export const referencePriceFor = (
   store: Store,
   date = new Date(),
 ) => {
-  const packageQuantity = packageQuantityFor(item);
+  const packageQuantity = packageQuantityFor(item, store);
   const packagePrice = storeUnitPrice(item, store, date);
   const referenceQuantity = item.unit === "pz" ? 1 : 1000;
   return packageQuantity > 0
@@ -95,7 +99,7 @@ export const confirmedPriceCoverage = (
     const item = catalog.find((price) => price.id === id);
     return Boolean(
       item &&
-      item.per > 0 &&
+      packageQuantityFor(item, store) > 0 &&
       item.confirmedStores?.[store] &&
       Number.isFinite(item.stores[store]) &&
       Number(item.stores[store]) > 0,
@@ -123,7 +127,7 @@ export const priceFor = (
   date = new Date(),
 ) => {
   const p = catalog.find((x) => x.id === item.id);
-  const packageQuantity = p ? packageQuantityFor(p) : 0;
+  const packageQuantity = p ? packageQuantityFor(p, store) : 0;
   if (!p || packageQuantity <= 0 || priceStatusFor(p, store) === "missing")
     return 0;
   return roundMoney(

@@ -44,6 +44,7 @@ export default function Home() {
     notice,
     storageError,
     generationStatus,
+    mdPriceError,
     setTab,
     setDark,
     setPrefs,
@@ -480,6 +481,7 @@ export default function Home() {
           onSelectPlan={selectPlan}
           onAddItem={addCatalogItem}
           setCatalog={setCatalog}
+          mdPriceError={mdPriceError}
         />
       )}
       {tab === "settings" && (

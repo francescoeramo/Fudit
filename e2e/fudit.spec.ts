@@ -22,6 +22,17 @@ test("genera piano e rende disponibile la lista della spesa", async ({
   ).toBeVisible();
 });
 
+test("carica i prezzi MD dal catalogo pubblico Supabase", async ({ page }) => {
+  await page.getByLabel("Supermercato").selectOption("MD");
+  await page.getByRole("button", { name: "Genera piano" }).click();
+  await expect(page.getByText("Piano creato", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Prezzi" }).click();
+  await expect(page.getByText(/aggiornati ogni martedì/)).toBeVisible();
+  await expect(
+    page.getByText(/Volantino ufficiale MD Sud/).first(),
+  ).toBeVisible();
+});
+
 test("conferme distruttive supportano annulla ed Escape", async ({ page }) => {
   await page.getByRole("button", { name: "Genera piano" }).click();
   await expect(page.getByText("Piano creato", { exact: false })).toBeVisible();

@@ -8,7 +8,7 @@ import {
 } from "./types";
 
 export const STORAGE_KEY = "fudit:data";
-export const STORAGE_VERSION = 3;
+export const STORAGE_VERSION = 4;
 export const MAX_STORED_BYTES = 4_500_000;
 
 export interface AppStorageData {
@@ -59,6 +59,10 @@ const migratePrice = (item: PriceItem): PriceItem => ({
     Number.isFinite(item.packageQuantity) && Number(item.packageQuantity) > 0
       ? Number(item.packageQuantity)
       : item.per,
+  packageQuantities:
+    item.packageQuantities && typeof item.packageQuantities === "object"
+      ? item.packageQuantities
+      : {},
   priceUpdatedAt:
     item.priceUpdatedAt && typeof item.priceUpdatedAt === "object"
       ? item.priceUpdatedAt
@@ -166,8 +170,8 @@ const migrateEnvelope = (
       "Il backup proviene da una versione più recente di Fudit. Aggiorna l’app prima di importarlo.",
     );
 
-  // V2 aggiunge metadati e preferenze; V3 aggiunge la provenienza dei prezzi.
-  if (![1, 2, 3].includes(Number(envelope.version)))
+  // V2 aggiunge metadati e preferenze; V3 la provenienza; V4 le confezioni per insegna.
+  if (![1, 2, 3, 4].includes(Number(envelope.version)))
     throw new Error("Questa versione del backup non è più supportata.");
   return {
     app: "Fudit",

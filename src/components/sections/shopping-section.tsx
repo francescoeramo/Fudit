@@ -204,7 +204,7 @@ export default function ShoppingSection({
                                   ...catalogItem.stores,
                                   [store]: roundMoney(
                                     (totalCost *
-                                      packageQuantityFor(catalogItem)) /
+                                      packageQuantityFor(catalogItem, store)) /
                                       item.quantity,
                                   ),
                                 },

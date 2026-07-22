@@ -33,6 +33,7 @@ export default function PricesSection({
   onSelectPlan,
   onAddItem,
   setCatalog,
+  mdPriceError,
 }: {
   plan: MealPlan | null;
   plans: MealPlan[];
@@ -41,6 +42,7 @@ export default function PricesSection({
   onSelectPlan: (id: string) => void;
   onAddItem: () => void;
   setCatalog: Dispatch<SetStateAction<PriceItem[]>>;
+  mdPriceError: string;
 }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<PriceStatus | "all">("all");
@@ -81,6 +83,13 @@ export default function PricesSection({
           <small>Settimana del {plan.weekKey ?? getWeekKey()}</small>
         </div>
       </div>
+      {store === "MD" && (
+        <p className={mdPriceError ? "price-missing" : "muted"} role="status">
+          {mdPriceError
+            ? `Prezzi MD automatici non disponibili: ${mdPriceError}`
+            : "I prezzi MD provengono dal volantino ufficiale Sud e vengono aggiornati ogni martedì. Prezzi manuali e da scontrino hanno la priorità."}
+        </p>
+      )}
       <div className="section-heading">
         <div>
           <h2>Prezzi ingredienti</h2>
@@ -182,7 +191,7 @@ export default function PricesSection({
                   min="0.001"
                   max="100000"
                   step="0.001"
-                  value={packageQuantityFor(item)}
+                  value={packageQuantityFor(item, store)}
                   onChange={(event) => {
                     const quantity = Math.min(
                       100000,
@@ -195,6 +204,10 @@ export default function PricesSection({
                               ...currentItem,
                               per: quantity,
                               packageQuantity: quantity,
+                              packageQuantities: {
+                                ...currentItem.packageQuantities,
+                                [store]: quantity,
+                              },
                             }
                           : currentItem,
                       ),
