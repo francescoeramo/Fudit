@@ -31,6 +31,8 @@ export const mealFamilies = (recipe: Recipe): string[] => {
   const families: string[] = [];
   if (ids.has("pasta")) families.push("pasta");
   if (ids.has("riso")) families.push("riso");
+  if (ids.has("polenta")) families.push("polenta");
+  if (ids.has("quinoa")) families.push("quinoa");
   if (ids.has("pane")) families.push("pane");
   if (ids.has("patate")) families.push("patate");
   if (["ceci", "lenticchie", "fagioli", "piselli"].some((id) => ids.has(id)))

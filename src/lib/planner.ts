@@ -383,7 +383,15 @@ const orderCombination = (
       0,
       budget - spent - minimumCost * remainingSlots,
     );
-    const compatible = candidates.filter((candidate) => {
+    const usedRecipeIds = new Set(
+      diversified.map((candidate) => candidate.recipe.id),
+    );
+    const available = candidates.filter(
+      (candidate) =>
+        (remaining.get(candidate.recipe.id) ?? 0) > 0 ||
+        !usedRecipeIds.has(candidate.recipe.id),
+    );
+    const compatible = available.filter((candidate) => {
       const families = new Set(mealFamilies(candidate.recipe));
       return !recent.some((other) =>
         mealFamilies(other.recipe).some((family) => families.has(family)),
@@ -392,7 +400,13 @@ const orderCombination = (
     const affordable = compatible.filter(
       (candidate) => candidate.cost <= affordableNow + 0.001,
     );
-    const pick = (affordable.length ? affordable : compatible)
+    const pick = (
+      affordable.length
+        ? affordable
+        : compatible.length
+          ? compatible
+          : available
+    )
       .map((candidate) => ({
         candidate,
         desired: remaining.get(candidate.recipe.id) ?? 0,

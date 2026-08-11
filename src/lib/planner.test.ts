@@ -65,9 +65,9 @@ describe("Fudit planning", () => {
   it("crea un piano esclusivamente low FODMAP quando l'opzione è attiva", () => {
     const plan = createPlan(recipes, seedPrices, {
       ...prefs,
-      budget: 200,
+      budget: 55,
       meals: ["pranzo", "cena"],
-      styles: ["low FODMAP"],
+      styles: ["veloci", "economici", "low FODMAP"],
     });
     expect(plan.meals).toHaveLength(14);
     expect(
@@ -77,9 +77,38 @@ describe("Fudit planning", () => {
           ?.tags.includes("low FODMAP"),
       ),
     ).toBe(true);
+    expect(new Set(plan.meals.map((meal) => meal.recipeId)).size).toBe(14);
+    const ingredientCounts = new Map<string, number>();
+    plan.meals.forEach((meal) => {
+      const recipe = recipes.find((item) => item.id === meal.recipeId)!;
+      recipe.ingredients.forEach((ingredient) =>
+        ingredientCounts.set(
+          ingredient.id,
+          (ingredientCounts.get(ingredient.id) ?? 0) + 1,
+        ),
+      );
+    });
+    expect(ingredientCounts.get("polenta")).toBeLessThanOrEqual(3);
     expect(
-      new Set(plan.meals.map((meal) => meal.recipeId)).size,
-    ).toBeGreaterThanOrEqual(10);
+      Math.max(
+        ...["riso", "patate", "polenta", "quinoa"].map(
+          (id) => ingredientCounts.get(id) ?? 0,
+        ),
+      ),
+    ).toBeLessThanOrEqual(4);
+    for (let day = 0; day < 7; day += 1) {
+      const dailyStaples = plan.meals
+        .filter((meal) => meal.day === day)
+        .map(
+          (meal) =>
+            recipes
+              .find((recipe) => recipe.id === meal.recipeId)!
+              .ingredients.find((ingredient) =>
+                ["riso", "patate", "polenta", "quinoa"].includes(ingredient.id),
+              )?.id,
+        );
+      expect(new Set(dailyStaples).size).toBe(2);
+    }
   });
   it("riconosce anche sinonimi e allergeni impliciti nel nome", () => {
     const walnutRecipe: Recipe = {
