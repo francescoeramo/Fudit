@@ -2,16 +2,18 @@
 
 Fudit è un pianificatore settimanale di pasti e spesa, gratuito e orientato alla privacy. Non richiede un account ed è pronto per il deploy su Vercel.
 
-I prezzi inclusi inizialmente sono dati dimostrativi modificabili. Per MD e Despar Centro Sud, Fudit importa ogni settimana prezzi dalle fonti ufficiali e distingue sempre valori confermati, stimati e mancanti.
+I prezzi inclusi inizialmente sono dati dimostrativi modificabili. Fudit controlla ogni settimana i volantini pubblici delle insegne presenti e distingue sempre valori confermati, stimati e mancanti.
 
 ## Funzionalità
 
 - Generazione di piani settimanali entro un budget, con ottimizzazione globale della combinazione di ricette.
+- 93 ricette complete; quando ci sono abbastanza alternative, ogni piatto compare una sola volta nella settimana.
+- Continuità intelligente: il nuovo piano evita le ricette della settimana precedente e penalizza piatti con ingredienti o famiglia troppo simili.
 - Preferenze per supermercato, numero di persone, pasti, stile alimentare, allergie e intolleranze.
 - Rigenerazione dei singoli pasti nel rispetto delle impostazioni originali del piano, con memoria delle alternative già mostrate.
 - Controllo preventivo degli allergeni, inclusi sinonimi e allergeni impliciti negli ingredienti, e maggiore rotazione degli ingredienti durante la settimana.
 - Catalogo prezzi con quantità della confezione, prezzo al kg/litro, origine e data di aggiornamento.
-- Aggiornamento automatico settimanale dei prezzi MD e Despar Centro Sud, con data e area della fonte; prezzi manuali e da scontrino hanno sempre la priorità.
+- Aggiornamento automatico settimanale dei prezzi Esselunga, Lidl, Eurospin, Coop, Conad, Vivo, Contè, Penny, MD e Despar, con data, validità e area della fonte; prezzi manuali e da scontrino hanno sempre la priorità.
 - Lista della spesa modificabile, raggruppata per categoria e collegata al piano selezionato.
 - Ricerca e filtri per ricette e catalogo prezzi.
 - Importazione di diete da PDF.
@@ -27,7 +29,9 @@ L'app usa Next.js e React. Le aree Pianificazione, Spesa, Ricette, Prezzi e Impo
 
 I dati dell'utente restano nel `localStorage` del browser. Il formato corrente è Fudit v5 e viene gestito da `src/lib/storage.ts`.
 
-I cataloghi pubblici MD e Despar usano Supabase con Row Level Security: il browser può leggere soltanto i prezzi attivi. Importazioni, storico, esecuzioni e token dei job non sono accessibili pubblicamente. Supabase Cron esegue l'importazione MD ogni martedì alle 04:00 UTC e quella Despar alle 04:30 UTC. Tutti i componenti usati rientrano nei piani gratuiti.
+I cataloghi pubblici MD e Despar usano Supabase con Row Level Security: il browser può leggere soltanto i prezzi attivi. Importazioni, storico, esecuzioni e token dei job non sono accessibili pubblicamente. Supabase Cron esegue l'importazione MD ogni martedì alle 04:00 UTC e quella Despar alle 04:30 UTC.
+
+Le altre insegne vengono controllate ogni martedì alle 05:15 UTC dal workflow GitHub Actions `Update flyer prices`. Lo script `scripts/update-flyer-prices.mjs` legge le pagine prodotto strutturate oppure estrae il testo dai PDF; per i PDF senza testo usa Poppler e Tesseract OCR. Salva soltanto abbinamenti con confezione, prezzo e unità coerenti in `public/flyer-prices.json`. Se un sito non pubblica un volantino attivo, cambia struttura o non consente un'estrazione affidabile, Fudit mostra il prezzo come mancante invece di riutilizzare una stima come prezzo confermato. `Altro` resta intenzionalmente manuale perché non identifica un'insegna. La pipeline usa solo GitHub Actions, strumenti open source e il piano Supabase esistente, senza API o servizi OCR a pagamento.
 
 La sorgente MD iniziale è `m_sud_mac_nogas.html` (area Sud, macelleria, senza gastronomia). Per Despar viene interrogato il catalogo ufficiale Despar a Casa del CAP 70037, Corato (BA), come riferimento del Centro-Sud. I prezzi possono variare per punto vendita, area e periodo: queste informazioni vengono mostrate accanto all'origine del prezzo e i valori automatici senza scadenza vengono declassati dopo 14 giorni.
 

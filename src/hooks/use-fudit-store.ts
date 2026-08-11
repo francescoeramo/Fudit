@@ -21,6 +21,11 @@ import {
   MdRemotePrice,
   mergeMdPrices,
 } from "@/lib/md-prices";
+import {
+  fetchFlyerPrices,
+  FlyerPriceDataset,
+  mergeFlyerPrices,
+} from "@/lib/flyer-prices";
 import { prunePlans, uniquePlans, normalizeRetention } from "@/lib/plans";
 import { recipes, seedPrices } from "@/lib/seed";
 import { AppStorageData, loadAppStorage, saveAppStorage } from "@/lib/storage";
@@ -44,6 +49,8 @@ interface FuditState extends AppStorageData {
   generationStatus: "idle" | "generating" | "success" | "error";
   mdPriceError: string;
   desparPriceError: string;
+  flyerPriceError: string;
+  flyerDataset: FlyerPriceDataset | null;
 }
 
 type SetAction = {
@@ -57,6 +64,7 @@ type Action =
   | { type: "hydrate"; data: AppStorageData; error?: string }
   | { type: "merge-md-prices"; prices: MdRemotePrice[] }
   | { type: "merge-despar-prices"; prices: DesparRemotePrice[] }
+  | { type: "merge-flyer-prices"; dataset: FlyerPriceDataset }
   | { type: "prune"; retention: PlanRetention }
   | { type: "reprice-plans" }
   | { type: "reprice-shopping" };
@@ -86,9 +94,11 @@ const mergeCatalogWithSeeds = (stored: PriceItem[]): PriceItem[] => [
 ];
 
 const hydrate = (data: AppStorageData): AppStorageData => {
-  const catalog = mergeDesparPrices(
-    mergeMdPrices(mergeCatalogWithSeeds(data.catalog), []),
-    [],
+  const catalog = mergeFlyerPrices(
+    mergeDesparPrices(
+      mergeMdPrices(mergeCatalogWithSeeds(data.catalog), []),
+      [],
+    ),
   );
   const dietRecipes = data.dietRecipes.filter(
     (recipe) =>
@@ -137,6 +147,8 @@ const initialState: FuditState = {
   generationStatus: "idle",
   mdPriceError: "",
   desparPriceError: "",
+  flyerPriceError: "",
+  flyerDataset: null,
 };
 
 const reducer = (state: FuditState, action: Action): FuditState => {
@@ -168,6 +180,13 @@ const reducer = (state: FuditState, action: Action): FuditState => {
       ...state,
       catalog: mergeDesparPrices(state.catalog, action.prices),
       desparPriceError: "",
+    };
+  if (action.type === "merge-flyer-prices")
+    return {
+      ...state,
+      catalog: mergeFlyerPrices(state.catalog, action.dataset),
+      flyerDataset: action.dataset,
+      flyerPriceError: "",
     };
   if (action.type === "prune") {
     const plans = prunePlans(state.plans, action.retention);
@@ -326,6 +345,28 @@ export function useFuditStore() {
             reason instanceof Error
               ? reason.message
               : "Aggiornamento prezzi Despar non riuscito.",
+        });
+      });
+    return () => controller.abort();
+  }, [state.ready]);
+
+  useEffect(() => {
+    if (!state.ready) return;
+    const controller = new AbortController();
+    fetchFlyerPrices(controller.signal)
+      .then((dataset) => {
+        if (!controller.signal.aborted)
+          dispatch({ type: "merge-flyer-prices", dataset });
+      })
+      .catch((reason) => {
+        if (controller.signal.aborted) return;
+        dispatch({
+          type: "set",
+          key: "flyerPriceError",
+          value:
+            reason instanceof Error
+              ? reason.message
+              : "Aggiornamento volantini non riuscito.",
         });
       });
     return () => controller.abort();

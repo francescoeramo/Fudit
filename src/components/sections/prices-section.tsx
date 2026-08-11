@@ -14,6 +14,7 @@ import {
 } from "@/lib/calculations";
 import { categorizeFood } from "@/lib/food";
 import { MealPlan, PriceItem, Store } from "@/lib/types";
+import { FlyerPriceDataset } from "@/lib/flyer-prices";
 
 const formatDate = (value?: string) => {
   if (!value || !Number.isFinite(new Date(value).getTime()))
@@ -35,6 +36,8 @@ export default function PricesSection({
   setCatalog,
   mdPriceError,
   desparPriceError,
+  flyerPriceError,
+  flyerDataset,
 }: {
   plan: MealPlan | null;
   plans: MealPlan[];
@@ -45,6 +48,8 @@ export default function PricesSection({
   setCatalog: Dispatch<SetStateAction<PriceItem[]>>;
   mdPriceError: string;
   desparPriceError: string;
+  flyerPriceError: string;
+  flyerDataset: FlyerPriceDataset | null;
 }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<PriceStatus | "all">("all");
@@ -59,6 +64,15 @@ export default function PricesSection({
           priceStatusFor(item, store) === statusFilter),
     );
   }, [catalog, query, statusFilter, store]);
+  const flyerStatus = flyerDataset?.stores.find(
+    (entry) => entry.store === store,
+  );
+  const automaticError =
+    store === "MD"
+      ? mdPriceError
+      : store === "Despar"
+        ? desparPriceError
+        : flyerPriceError || flyerStatus?.error || "";
 
   if (!plan)
     return (
@@ -85,21 +99,17 @@ export default function PricesSection({
           <small>Settimana del {plan.weekKey ?? getWeekKey()}</small>
         </div>
       </div>
-      {store === "MD" && (
-        <p className={mdPriceError ? "price-missing" : "muted"} role="status">
-          {mdPriceError
-            ? `Prezzi MD automatici non disponibili: ${mdPriceError}`
-            : "I prezzi MD provengono dal volantino ufficiale Sud e vengono aggiornati ogni martedì. Prezzi manuali e da scontrino hanno la priorità."}
-        </p>
-      )}
-      {store === "Despar" && (
-        <p
-          className={desparPriceError ? "price-missing" : "muted"}
-          role="status"
-        >
-          {desparPriceError
-            ? `Prezzi Despar automatici non disponibili: ${desparPriceError}`
-            : "I prezzi Despar provengono dal catalogo ufficiale Despar a Casa di Corato (BA), rappresentativo del Sud Italia, e vengono aggiornati ogni martedì. Prezzi manuali e da scontrino hanno la priorità."}
+      {store !== "Altro" && (
+        <p className={automaticError ? "price-missing" : "muted"} role="status">
+          {automaticError
+            ? `Prezzi ${store} automatici non disponibili: ${automaticError}`
+            : store === "MD"
+              ? "I prezzi MD provengono dal volantino ufficiale Sud e vengono aggiornati ogni martedì. Prezzi manuali e da scontrino hanno la priorità."
+              : store === "Despar"
+                ? "I prezzi Despar provengono dal catalogo ufficiale Despar a Casa di Corato (BA) e vengono aggiornati ogni martedì. Prezzi manuali e da scontrino hanno la priorità."
+                : flyerStatus?.ok
+                  ? `${flyerStatus.productsMapped} prezzi collegati su ${flyerStatus.productsFound} offerte del volantino · ${flyerStatus.sourceArea}. Aggiornamento settimanale gratuito; manuali e scontrini hanno la priorità.`
+                  : "La fonte del volantino viene controllata ogni settimana. Nessun prezzo confermato disponibile per questa zona o questo periodo."}
         </p>
       )}
       <div className="section-heading">

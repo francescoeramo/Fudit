@@ -10,7 +10,12 @@ import {
   storeUnitPrice,
 } from "./calculations";
 import { mealFamilies, mealVarietyKeys } from "./food";
-import { chooseReplacementRecipe, createPlan, isCompatible } from "./planner";
+import {
+  chooseReplacementRecipe,
+  createPlan,
+  isCompatible,
+  recipeSimilarity,
+} from "./planner";
 import { recipes, seedPrices } from "./seed";
 import { Preferences, PriceItem, Recipe } from "./types";
 const prefs: Preferences = {
@@ -157,6 +162,42 @@ describe("Fudit planning", () => {
     });
     expect(Math.max(...counts.values())).toBeLessThanOrEqual(4);
   });
+  it("non ripete lo stesso piatto nella settimana", () => {
+    const plan = createPlan(recipes, seedPrices, {
+      ...prefs,
+      styles: [],
+      meals: ["pranzo", "cena"],
+      budget: 160,
+    });
+    expect(new Set(plan.meals.map((meal) => meal.recipeId)).size).toBe(
+      plan.meals.length,
+    );
+  });
+  it("differenzia il piano dalla settimana precedente", () => {
+    const preferences = {
+      ...prefs,
+      styles: [],
+      meals: ["pranzo", "cena"] as Preferences["meals"],
+      budget: 160,
+    };
+    const firstWeek = createPlan(recipes, seedPrices, preferences);
+    const secondWeek = createPlan(recipes, seedPrices, preferences, firstWeek);
+    const firstIds = new Set(firstWeek.meals.map((meal) => meal.recipeId));
+    expect(secondWeek.meals.every((meal) => !firstIds.has(meal.recipeId))).toBe(
+      true,
+    );
+    const byId = new Map(recipes.map((recipe) => [recipe.id, recipe]));
+    const positionSimilarity = secondWeek.meals.map((meal, index) =>
+      recipeSimilarity(
+        byId.get(meal.recipeId)!,
+        byId.get(firstWeek.meals[index].recipeId)!,
+      ),
+    );
+    expect(
+      positionSimilarity.reduce((sum, value) => sum + value, 0) /
+        positionSimilarity.length,
+    ).toBeLessThan(0.5);
+  });
   it("usa prezzi diversi per insegna e settimana", () => {
     const item = seedPrices[0];
     expect(storeUnitPrice(item, "Lidl", new Date("2026-07-14"))).not.toBe(
@@ -290,6 +331,10 @@ describe("Fudit planning", () => {
     );
     expect(referencePriceFor(item, "Lidl")).toBeGreaterThan(0);
   });
-  it("contiene almeno 73 ricette", () =>
-    expect(recipes.length).toBeGreaterThanOrEqual(73));
+  it("contiene almeno 93 ricette con identificativi univoci", () => {
+    expect(recipes.length).toBeGreaterThanOrEqual(93);
+    expect(new Set(recipes.map((recipe) => recipe.id)).size).toBe(
+      recipes.length,
+    );
+  });
 });

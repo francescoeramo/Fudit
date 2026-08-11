@@ -28,6 +28,7 @@ interface PricedRecipe {
   recipe: Recipe;
   cost: number;
   preferenceScore: number;
+  continuityPenalty: number;
 }
 
 interface CombinationState {
@@ -62,10 +63,10 @@ const bestCombinationWithinBudget = (
     Math.max(0, Math.round(budget * 100)),
     Math.max(...candidates.map(({ cost }) => Math.round(cost * 100))) * slots,
   );
-  const maxUses = Math.min(
-    slots,
-    Math.max(3, Math.ceil(slots / candidates.length) + 2),
-  );
+  const maxUses =
+    candidates.length >= slots
+      ? 1
+      : Math.min(slots, Math.max(3, Math.ceil(slots / candidates.length) + 2));
   const maximumCost = Math.max(...candidates.map(({ cost }) => cost));
   const candidateById = new Map(
     candidates.map((candidate) => [candidate.recipe.id, candidate]),
@@ -124,7 +125,8 @@ const bestCombinationWithinBudget = (
             preferenceBonus +
             budgetEfficiency -
             varietyPenalty -
-            ingredientPenalty;
+            ingredientPenalty -
+            candidate.continuityPenalty * uses;
           const target = next[count + uses].get(nextSpent);
           if (!target || score > target.score) {
             const selections = new Map(state.selections);
@@ -153,6 +155,22 @@ const stableHash = (value: string) =>
     2166136261,
   );
 
+export const recipeSimilarity = (left: Recipe, right: Recipe) => {
+  if (left.id === right.id) return 1;
+  const leftIngredients = new Set(mealVarietyKeys(left));
+  const rightIngredients = new Set(mealVarietyKeys(right));
+  const intersection = [...leftIngredients].filter((ingredient) =>
+    rightIngredients.has(ingredient),
+  ).length;
+  const union = new Set([...leftIngredients, ...rightIngredients]).size;
+  const ingredientSimilarity = union ? intersection / union : 0;
+  const rightFamilies = new Set(mealFamilies(right));
+  const sharedFamily = mealFamilies(left).some((family) =>
+    rightFamilies.has(family),
+  );
+  return Math.min(1, ingredientSimilarity + (sharedFamily ? 0.2 : 0));
+};
+
 export const chooseReplacementRecipe = ({
   recipes,
   catalog,
@@ -178,13 +196,26 @@ export const chooseReplacementRecipe = ({
   const compatible = recipes.filter((recipe) =>
     isCompatible(recipe, preferences, catalog),
   );
-  let candidates = compatible.filter((recipe) => !history.includes(recipe.id));
+  const usedElsewhere = new Set(
+    plan.meals
+      .filter((meal) => meal.day !== day || meal.slot !== slot)
+      .map((meal) => meal.recipeId),
+  );
+  let candidates = compatible.filter(
+    (recipe) => !history.includes(recipe.id) && !usedElsewhere.has(recipe.id),
+  );
   let nextHistory = history;
+  if (!candidates.length) {
+    candidates = compatible.filter(
+      (recipe) =>
+        recipe.id !== currentMeal.recipeId && !usedElsewhere.has(recipe.id),
+    );
+    nextHistory = [currentMeal.recipeId];
+  }
   if (!candidates.length) {
     candidates = compatible.filter(
       (recipe) => recipe.id !== currentMeal.recipeId,
     );
-    nextHistory = [currentMeal.recipeId];
   }
   if (!candidates.length) return null;
 
@@ -266,6 +297,7 @@ const orderCombination = (
   candidates: PricedRecipe[],
   slotsPerDay: number,
   budget: number,
+  previousRecipes: Recipe[] = [],
 ) => {
   const remaining = new Map<string, number>();
   selectedIds.forEach((id) => remaining.set(id, (remaining.get(id) ?? 0) + 1));
@@ -302,6 +334,14 @@ const orderCombination = (
       .sort(
         (left, right) =>
           right.uses - left.uses ||
+          recipeSimilarity(
+            left.candidate.recipe,
+            previousRecipes[position] ?? left.candidate.recipe,
+          ) -
+            recipeSimilarity(
+              right.candidate.recipe,
+              previousRecipes[position] ?? right.candidate.recipe,
+            ) ||
           right.candidate.preferenceScore - left.candidate.preferenceScore,
       );
     for (const { candidate, uses } of choices) {
@@ -411,6 +451,7 @@ export const createPlan = (
   recipes: Recipe[],
   catalog: PriceItem[],
   prefs: Preferences,
+  previousPlan?: MealPlan,
 ): MealPlan => {
   const now = new Date();
   const compatible = recipes.filter((r) => isCompatible(r, prefs, catalog));
@@ -423,13 +464,34 @@ export const createPlan = (
         ) !== "missing",
     ),
   );
-  const options = completelyPriced.length ? completelyPriced : compatible;
+  const pricedOptions = completelyPriced.length ? completelyPriced : compatible;
+  const totalSlots = 7 * prefs.meals.length;
+  const previousRecipeIds = new Set(
+    previousPlan?.meals.map((meal) => meal.recipeId) ?? [],
+  );
+  const withoutPreviousWeek = pricedOptions.filter(
+    (recipe) => !previousRecipeIds.has(recipe.id),
+  );
+  const options =
+    withoutPreviousWeek.length >= totalSlots
+      ? withoutPreviousWeek
+      : pricedOptions;
+  const recipesById = new Map(recipes.map((recipe) => [recipe.id, recipe]));
+  const previousRecipes =
+    previousPlan?.meals
+      .map((meal) => recipesById.get(meal.recipeId))
+      .filter((recipe): recipe is Recipe => recipe !== undefined) ?? [];
   const candidates = options.map((r) => ({
     recipe: r,
     cost: recipeCost(r, catalog, prefs.store, prefs.people, now),
     preferenceScore: prefs.styles.filter((s) => r.tags.includes(s)).length,
+    continuityPenalty: Math.round(
+      Math.max(
+        0,
+        ...previousRecipes.map((previous) => recipeSimilarity(r, previous)),
+      ) * 900,
+    ),
   }));
-  const totalSlots = 7 * prefs.meals.length;
   const selected = bestCombinationWithinBudget(
     candidates,
     totalSlots,
@@ -444,6 +506,7 @@ export const createPlan = (
     candidates,
     prefs.meals.length,
     prefs.budget,
+    previousRecipes,
   );
   const meals = ordered.map((candidate, index) => ({
     day: Math.floor(index / prefs.meals.length),

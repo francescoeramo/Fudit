@@ -86,12 +86,34 @@ function flyerValidity(html: string) {
 
 function parseFlyerProducts(html: string): FlyerProduct[] {
   const marker = "var data = ";
-  const start = html.indexOf(marker);
-  if (start < 0) throw new Error("Blocco prodotti MD non trovato");
-  const jsonStart = start + marker.length;
-  const end = html.indexOf("];", jsonStart);
-  if (end < 0) throw new Error("Blocco prodotti MD incompleto");
-  const sections = JSON.parse(html.slice(jsonStart, end + 1)) as Array<{
+  const markerIndex = html.indexOf(marker);
+  const jsonStart = html.indexOf("[", markerIndex + marker.length);
+  if (markerIndex < 0 || jsonStart < 0)
+    throw new Error("Blocco prodotti MD non trovato");
+  let depth = 0;
+  let quoted = false;
+  let escaped = false;
+  let jsonEnd = -1;
+  for (let index = jsonStart; index < html.length; index += 1) {
+    const character = html[index];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === '"') quoted = false;
+      continue;
+    }
+    if (character === '"') quoted = true;
+    else if (character === "[") depth += 1;
+    else if (character === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        jsonEnd = index + 1;
+        break;
+      }
+    }
+  }
+  if (jsonEnd < 0) throw new Error("Blocco prodotti MD incompleto");
+  const sections = JSON.parse(html.slice(jsonStart, jsonEnd)) as Array<{
     products?: FlyerProduct[];
   }>;
   return sections.flatMap((section) => section.products ?? []);

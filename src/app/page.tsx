@@ -46,6 +46,8 @@ export default function Home() {
     generationStatus,
     mdPriceError,
     desparPriceError,
+    flyerPriceError,
+    flyerDataset,
     setTab,
     setDark,
     setPrefs,
@@ -140,7 +142,10 @@ export default function Home() {
     setGenerationStatus("generating");
     setNotice("Analizzo ricette, prezzi e vincoli per costruire la settimana…");
     window.setTimeout(() => {
-      const p = createPlan(recipes, catalog, prefs);
+      const previousGeneratedPlan = plans.find(
+        (item) => item.source === "generated" || item.source === undefined,
+      );
+      const p = createPlan(recipes, catalog, prefs, previousGeneratedPlan);
       if (!p.meals.length) {
         setGenerationStatus("error");
         setNotice(
@@ -486,6 +491,8 @@ export default function Home() {
           setCatalog={setCatalog}
           mdPriceError={mdPriceError}
           desparPriceError={desparPriceError}
+          flyerPriceError={flyerPriceError}
+          flyerDataset={flyerDataset}
         />
       )}
       {tab === "settings" && (
