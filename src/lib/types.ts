@@ -27,7 +27,8 @@ export type FoodStyle =
   | "vegetariani"
   | "vegani"
   | "senza glutine"
-  | "senza lattosio";
+  | "senza lattosio"
+  | "low FODMAP";
 export interface Nutrition {
   calories: number;
   protein: number;

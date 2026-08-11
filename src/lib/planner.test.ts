@@ -62,6 +62,25 @@ describe("Fudit planning", () => {
       ),
     ).toBe(true);
   });
+  it("crea un piano esclusivamente low FODMAP quando l'opzione è attiva", () => {
+    const plan = createPlan(recipes, seedPrices, {
+      ...prefs,
+      budget: 200,
+      meals: ["pranzo", "cena"],
+      styles: ["low FODMAP"],
+    });
+    expect(plan.meals).toHaveLength(14);
+    expect(
+      plan.meals.every((meal) =>
+        recipes
+          .find((recipe) => recipe.id === meal.recipeId)
+          ?.tags.includes("low FODMAP"),
+      ),
+    ).toBe(true);
+    expect(
+      new Set(plan.meals.map((meal) => meal.recipeId)).size,
+    ).toBeGreaterThanOrEqual(10);
+  });
   it("riconosce anche sinonimi e allergeni impliciti nel nome", () => {
     const walnutRecipe: Recipe = {
       ...recipes[0],

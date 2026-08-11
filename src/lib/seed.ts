@@ -129,7 +129,7 @@ const rawSeedPrices: PriceItem[] = [
   },
   {
     id: "tofu",
-    name: "Tofu naturale",
+    name: "Tofu compatto al naturale",
     unit: "g",
     price: 2.29,
     per: 200,
@@ -2214,8 +2214,160 @@ const italianRecipes: Recipe[] = [
     ],
   ),
 ];
+
+const lowFodmap = (
+  id: string,
+  title: string,
+  time: number,
+  ingredients: Recipe["ingredients"],
+  nutrition: Recipe["nutrition"],
+  extraTags: Recipe["tags"] = [],
+): Recipe => ({
+  id: `fodmap-${id}`,
+  title,
+  time,
+  difficulty: "Facile",
+  ingredients,
+  steps: [
+    "Prepara gli ingredienti nelle quantità indicate, senza cipolla né aglio.",
+    "Cuoci cereale o patate e la fonte proteica separatamente.",
+    "Unisci le verdure, condisci con erbe, limone e olio aromatizzato all’aglio se gradito.",
+  ],
+  nutrition,
+  tags: [
+    "low FODMAP",
+    "salutari",
+    "senza glutine",
+    "senza lattosio",
+    ...extraTags,
+  ],
+  allergens: ingredients.flatMap((ingredient) => ingredient.allergens ?? []),
+  baseServings: 2,
+});
+
+/**
+ * Proposte per la fase 1 low FODMAP: ingredienti semplici e porzioni esplicite,
+ * così il filtro non si limita a rimuovere cipolla/aglio da ricette generiche.
+ * La tolleranza resta individuale e le porzioni vanno validate col dietista.
+ */
+const lowFodmapRecipes: Recipe[] = [
+  lowFodmap(
+    "pollo-riso-carote",
+    "Pollo low FODMAP con riso e carote",
+    28,
+    [ing("pollo", 300), ing("riso", 170), ing("carote", 240)],
+    n(510, 38, 60, 13),
+    ["high protein", "veloci"],
+  ),
+  lowFodmap(
+    "salmone-patate-spinaci",
+    "Salmone low FODMAP con patate e spinaci",
+    32,
+    [ing("salmone", 280), ing("patate", 450), ing("spinaci", 180)],
+    n(540, 35, 58, 18),
+    ["high protein"],
+  ),
+  lowFodmap(
+    "tacchino-riso-zucchine",
+    "Tacchino low FODMAP, riso e zucchine",
+    26,
+    [ing("tacchino", 300), ing("riso", 170), ing("zucchine", 120)],
+    n(495, 40, 59, 11),
+    ["high protein", "veloci"],
+  ),
+  lowFodmap(
+    "merluzzo-polenta-carote",
+    "Merluzzo low FODMAP con polenta e carote",
+    30,
+    [ing("merluzzo", 320), ing("polenta", 170), ing("carote", 220)],
+    n(500, 39, 63, 10),
+    ["high protein"],
+  ),
+  lowFodmap(
+    "uova-riso-spinaci",
+    "Riso low FODMAP con uova e spinaci",
+    22,
+    [ing("uova", 4, "pz"), ing("riso", 170), ing("spinaci", 180)],
+    n(500, 25, 63, 16),
+    ["vegetariani", "veloci", "economici"],
+  ),
+  lowFodmap(
+    "tofu-riso-carote",
+    "Tofu compatto low FODMAP con riso e carote",
+    24,
+    [ing("tofu", 300), ing("riso", 170), ing("carote", 220)],
+    n(500, 28, 65, 14),
+    ["vegetariani", "vegani", "veloci"],
+  ),
+  lowFodmap(
+    "lonza-patate-zucchine",
+    "Lonza low FODMAP con patate e zucchine",
+    30,
+    [ing("maiale", 300), ing("patate", 450), ing("zucchine", 120)],
+    n(515, 38, 56, 15),
+    ["high protein"],
+  ),
+  lowFodmap(
+    "manzo-polenta-spinaci",
+    "Manzo low FODMAP con polenta e spinaci",
+    32,
+    [ing("manzo", 260), ing("polenta", 170), ing("spinaci", 180)],
+    n(550, 36, 60, 19),
+    ["high protein"],
+  ),
+  lowFodmap(
+    "tonno-riso-carote",
+    "Insalata low FODMAP di riso, tonno e carote",
+    20,
+    [ing("tonno", 160), ing("riso", 180), ing("carote", 220)],
+    n(485, 31, 65, 10),
+    ["high protein", "veloci"],
+  ),
+  lowFodmap(
+    "pollo-polenta-spinaci",
+    "Pollo low FODMAP con polenta e spinaci",
+    27,
+    [ing("pollo", 300), ing("polenta", 170), ing("spinaci", 180)],
+    n(500, 40, 60, 11),
+    ["high protein"],
+  ),
+  lowFodmap(
+    "frittata-patate-carote",
+    "Frittata low FODMAP con patate e carote",
+    30,
+    [ing("uova", 4, "pz"), ing("patate", 420), ing("carote", 220)],
+    n(510, 25, 60, 17),
+    ["vegetariani", "economici"],
+  ),
+  lowFodmap(
+    "tofu-polenta-zucchine",
+    "Tofu low FODMAP con polenta e zucchine",
+    25,
+    [ing("tofu", 300), ing("polenta", 170), ing("zucchine", 120)],
+    n(495, 27, 64, 14),
+    ["vegetariani", "vegani", "veloci"],
+  ),
+  lowFodmap(
+    "merluzzo-riso-spinaci",
+    "Merluzzo low FODMAP con riso e spinaci",
+    25,
+    [ing("merluzzo", 320), ing("riso", 175), ing("spinaci", 180)],
+    n(490, 40, 61, 9),
+    ["high protein", "veloci"],
+  ),
+  lowFodmap(
+    "tacchino-patate-carote",
+    "Tacchino low FODMAP con patate e carote",
+    31,
+    [ing("tacchino", 300), ing("patate", 450), ing("carote", 220)],
+    n(505, 40, 57, 12),
+    ["high protein"],
+  ),
+];
+
 export const recipes: Recipe[] = [
   ...baseRecipes,
   ...moreRecipes,
   ...italianRecipes,
+  ...lowFodmapRecipes,
 ];

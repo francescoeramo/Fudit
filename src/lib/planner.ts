@@ -12,6 +12,12 @@ export const isCompatible = (
   prefs: Preferences,
   catalog: PriceItem[] = [],
 ) => {
+  // Le ricette terapeutiche dedicate entrano nel piano solo su scelta esplicita.
+  if (
+    recipe.tags.includes("low FODMAP") &&
+    !prefs.styles.includes("low FODMAP")
+  )
+    return false;
   if (
     prefs.allergies.some((allergy) =>
       recipeMatchesAllergy(recipe, allergy, catalog),
@@ -19,7 +25,13 @@ export const isCompatible = (
   )
     return false;
   const strict = prefs.styles.filter((s) =>
-    ["vegetariani", "vegani", "senza glutine", "senza lattosio"].includes(s),
+    [
+      "vegetariani",
+      "vegani",
+      "senza glutine",
+      "senza lattosio",
+      "low FODMAP",
+    ].includes(s),
   );
   return strict.every((s) => recipe.tags.includes(s));
 };

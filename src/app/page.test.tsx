@@ -33,6 +33,19 @@ describe("flussi principali Fudit", () => {
       fireEvent.click(screen.getByRole("button", { name: section }));
     expect(screen.getByText("Preferenze")).toBeInTheDocument();
   });
+  it("genera un piano low FODMAP e ne mostra macro e avvertenze", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+    await screen.findByText("Il tuo piano");
+    await user.click(screen.getByRole("button", { name: "low FODMAP" }));
+    expect(screen.getByText("Fase 1 · low FODMAP")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Genera piano" }));
+    expect(await screen.findByText("Macro del piano")).toBeVisible();
+    expect(screen.getByText("Distribuzione in linea")).toBeVisible();
+    expect(
+      screen.getAllByText(/low FODMAP/, { selector: ".meal-title" }),
+    ).toHaveLength(7);
+  });
   it("aggiunge modifica categorizza e rimuove dalla spesa", async () => {
     const user = userEvent.setup();
     render(<Home />);

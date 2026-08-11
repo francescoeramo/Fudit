@@ -6,6 +6,7 @@ import PlanPicker from "@/components/plan-picker";
 import { foodStyles, stores, weekDays } from "@/lib/config";
 import { FoodStyle, MealPlan, Preferences, Recipe, Store } from "@/lib/types";
 import { PriceStatus } from "@/lib/calculations";
+import { summarizePlanNutrition } from "@/lib/nutrition";
 
 export default function PlanSection({
   plans,
@@ -32,6 +33,8 @@ export default function PlanSection({
   setPrefs: Dispatch<SetStateAction<Preferences>>;
   onToggleStyle: (style: FoodStyle) => void;
 }) {
+  const nutrition = summarizePlanNutrition(plan, recipes);
+  const plannedSlots = plan?.preferences?.meals.length ?? 0;
   return (
     <>
       {generationStatus === "generating" && (
@@ -91,6 +94,50 @@ export default function PlanSection({
                   {coverage.missing} mancanti
                 </span>
               </div>
+              {nutrition && (
+                <div
+                  className="nutrition-summary"
+                  aria-label="Equilibrio nutrizionale del piano"
+                >
+                  <div className="nutrition-summary-heading">
+                    <div>
+                      <b>Macro del piano</b>
+                      <small>Media per persona e per pasto</small>
+                    </div>
+                    <span
+                      className={
+                        nutrition.balancedMacroDistribution
+                          ? "macro-status balanced"
+                          : "macro-status review"
+                      }
+                    >
+                      {nutrition.balancedMacroDistribution
+                        ? "Distribuzione in linea"
+                        : "Distribuzione da rivedere"}
+                    </span>
+                  </div>
+                  <div className="nutrition-summary-values">
+                    <span>{nutrition.averageCalories} kcal</span>
+                    <span>
+                      P {nutrition.averageProtein} g ·{" "}
+                      {nutrition.proteinEnergyPercent}%
+                    </span>
+                    <span>
+                      C {nutrition.averageCarbs} g ·{" "}
+                      {nutrition.carbsEnergyPercent}%
+                    </span>
+                    <span>
+                      G {nutrition.averageFat} g · {nutrition.fatEnergyPercent}%
+                    </span>
+                  </div>
+                  <p>
+                    Confronto generale EFSA: carboidrati 45–60% e grassi 20–35%
+                    dell’energia.{" "}
+                    {plannedSlots < 3 &&
+                      "Il piano copre solo i pasti selezionati, non l’intera giornata."}
+                  </p>
+                </div>
+              )}
               {weekDays.map((day, dayIndex) => (
                 <div className="day" key={day}>
                   <b>{day}</b>
@@ -230,6 +277,40 @@ export default function PlanSection({
               ))}
             </div>
           </fieldset>
+          {prefs.styles.includes("low FODMAP") && (
+            <aside
+              className="fodmap-note"
+              aria-label="Informazioni dieta low FODMAP"
+            >
+              <b>Fase 1 · low FODMAP</b>
+              <p>
+                Il piano usa solo le ricette dedicate, con porzioni esplicite e
+                senza cipolla o aglio. È una fase temporanea di 2–6 settimane,
+                seguita da reintroduzione e personalizzazione.
+              </p>
+              <p>
+                Non è una dieta dimagrante né una prescrizione medica. Per IBS,
+                applicala con un dietista formato, soprattutto in presenza di
+                altre patologie o restrizioni.
+              </p>
+              <div className="source-links">
+                <a
+                  href="https://monashfodmap.com/ibs-central/diets/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Protocollo Monash
+                </a>
+                <a
+                  href="https://webfiles.gi.org/links/PCC/ACG_Clinical_Guideline__Management_of_Irritable.11.pdf"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Linea guida ACG
+                </a>
+              </div>
+            </aside>
+          )}
           <label htmlFor="allergies">Allergie / intolleranze</label>
           <input
             id="allergies"
