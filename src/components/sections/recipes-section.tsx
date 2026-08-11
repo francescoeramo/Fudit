@@ -1,6 +1,7 @@
 "use client";
 
 import { Dispatch, SetStateAction, useMemo, useState } from "react";
+import ManualRecipeForm from "@/components/manual-recipe-form";
 import {
   confirmedPriceCoverage,
   confirmedRecipeCost,
@@ -21,15 +22,18 @@ export default function RecipesSection({
   catalog,
   prefs,
   setPrefs,
+  onAddRecipe,
 }: {
   recipes: Recipe[];
   plan: MealPlan | null;
   catalog: PriceItem[];
   prefs: Preferences;
   setPrefs: Dispatch<SetStateAction<Preferences>>;
+  onAddRecipe: (recipe: Recipe) => void;
 }) {
   const [query, setQuery] = useState("");
   const [style, setStyle] = useState<FoodStyle | "all">("all");
+  const [creating, setCreating] = useState(false);
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return recipes.filter(
@@ -47,6 +51,36 @@ export default function RecipesSection({
 
   return (
     <>
+      <section className="card recipe-creator">
+        <div className="section-heading">
+          <div>
+            <h2>Aggiungi una ricetta</h2>
+            <p className="muted">
+              Usa il layout guidato: la ricetta verrà salvata e potrà essere
+              scelta nei prossimi piani.
+            </p>
+          </div>
+          {!creating && (
+            <button
+              className="button"
+              type="button"
+              onClick={() => setCreating(true)}
+            >
+              Nuova ricetta
+            </button>
+          )}
+        </div>
+        {creating && (
+          <ManualRecipeForm
+            catalog={catalog}
+            onCancel={() => setCreating(false)}
+            onSave={(recipe) => {
+              onAddRecipe(recipe);
+              setCreating(false);
+            }}
+          />
+        )}
+      </section>
       <div className="recipe-toolbar search-toolbar">
         <div className="search-controls">
           <input
@@ -151,6 +185,9 @@ export default function RecipesSection({
                 )}
               </div>
               <div className="tag-row">
+                {recipe.origin === "manual" && (
+                  <span className="pill personal-recipe">personale</span>
+                )}
                 {recipe.tags.map((tag) => (
                   <span className="pill" key={tag}>
                     {tag}

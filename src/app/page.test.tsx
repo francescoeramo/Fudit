@@ -175,6 +175,54 @@ describe("flussi principali Fudit", () => {
     ).toHaveTextContent("prezzi reali");
   });
 
+  it("salva una ricetta manuale con categorie e la recupera in un nuovo piano", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+    await screen.findByText("Il tuo piano");
+    await user.click(screen.getByRole("button", { name: "Ricette" }));
+    await user.click(screen.getByRole("button", { name: "Nuova ricetta" }));
+    await user.type(screen.getByLabelText("Nome ricetta"), "Pasta personale");
+    await user.type(screen.getByLabelText("Passaggio 1"), "Cuoci e condisci.");
+    for (const category of [
+      "vegani",
+      "senza glutine",
+      "senza lattosio",
+      "low FODMAP",
+    ])
+      await user.click(screen.getByRole("checkbox", { name: category }));
+    await user.click(screen.getByRole("button", { name: "Salva ricetta" }));
+
+    expect(screen.getByText("Pasta personale")).toBeVisible();
+    expect(screen.getByText("personale")).toBeVisible();
+    await waitFor(() =>
+      expect(storedData().dietRecipes[0]).toMatchObject({
+        title: "Pasta personale",
+        origin: "manual",
+        tags: ["vegani", "senza glutine", "senza lattosio", "low FODMAP"],
+      }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Pianifica" }));
+    await user.click(screen.getByRole("button", { name: "veloci" }));
+    await user.click(screen.getByRole("button", { name: "economici" }));
+    for (const category of [
+      "vegani",
+      "senza glutine",
+      "senza lattosio",
+      "low FODMAP",
+    ])
+      await user.click(screen.getByRole("button", { name: category }));
+    await user.clear(screen.getByLabelText("Budget settimanale (€)"));
+    await user.type(screen.getByLabelText("Budget settimanale (€)"), "2");
+    await user.click(screen.getByRole("button", { name: "Genera piano" }));
+
+    expect(
+      await screen.findAllByText(/Pasta personale/, {
+        selector: ".meal-title",
+      }),
+    ).toHaveLength(7);
+  });
+
   it("segnala quando il browser rifiuta il salvataggio", async () => {
     const user = userEvent.setup();
     render(<Home />);

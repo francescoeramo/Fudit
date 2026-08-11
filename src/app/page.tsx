@@ -24,7 +24,7 @@ import {
   createBackup,
   parseBackup,
 } from "@/lib/storage";
-import { FoodStyle, PlanRetention, ShoppingItem } from "@/lib/types";
+import { FoodStyle, PlanRetention, Recipe, ShoppingItem } from "@/lib/types";
 import { ReceiptImportRow } from "@/components/receipt-scanner";
 import { defaultPreferences, stores } from "@/lib/config";
 import { useFuditStore } from "@/hooks/use-fudit-store";
@@ -64,6 +64,10 @@ export default function Home() {
     applyStoredData,
   } = useFuditStore();
   const allRecipes = [...dietRecipes, ...recipes];
+  const planRecipesCatalog = [
+    ...dietRecipes.filter((recipe) => recipe.origin === "manual"),
+    ...recipes,
+  ];
   const plan =
     plans.find((item) => item.id === activePlanId) ?? plans[0] ?? null;
   const shopping = plan ? (shoppingByPlan[plan.id] ?? []) : [];
@@ -145,7 +149,12 @@ export default function Home() {
       const previousGeneratedPlan = plans.find(
         (item) => item.source === "generated" || item.source === undefined,
       );
-      const p = createPlan(recipes, catalog, prefs, previousGeneratedPlan);
+      const p = createPlan(
+        planRecipesCatalog,
+        catalog,
+        prefs,
+        previousGeneratedPlan,
+      );
       if (!p.meals.length) {
         setGenerationStatus("error");
         setNotice(
@@ -155,7 +164,9 @@ export default function Home() {
       }
       const nextShopping = aggregateShopping(
         p.meals
-          .map((meal) => recipes.find((recipe) => recipe.id === meal.recipeId)!)
+          .map((meal) =>
+            planRecipesCatalog.find((recipe) => recipe.id === meal.recipeId)!,
+          )
           .filter(Boolean),
         catalog,
         prefs.store,
@@ -182,7 +193,7 @@ export default function Home() {
       budget: plan.budget ?? prefs.budget,
     };
     const replacement = chooseReplacementRecipe({
-      recipes,
+      recipes: planRecipesCatalog,
       catalog,
       preferences: planPreferences,
       plan,
@@ -216,7 +227,7 @@ export default function Home() {
     setShopping(
       aggregateShopping(
         meals
-          .map((m) => recipes.find((r) => r.id === m.recipeId)!)
+          .map((m) => planRecipesCatalog.find((r) => r.id === m.recipeId)!)
           .filter(Boolean),
         catalog,
         planStore,
@@ -234,6 +245,12 @@ export default function Home() {
         ? p.styles.filter((x) => x !== style)
         : [...p.styles, style],
     }));
+  const addManualRecipe = (recipe: Recipe) => {
+    setDietRecipes((current) => [recipe, ...current]);
+    setNotice(
+      `Ricetta “${recipe.title}” salvata. Le categorie selezionate verranno usate nei prossimi piani alimentari.`,
+    );
+  };
   const addShoppingItem = () => {
     setShopping((s) => [
       {
@@ -468,6 +485,7 @@ export default function Home() {
           catalog={catalog}
           prefs={prefs}
           setPrefs={setPrefs}
+          onAddRecipe={addManualRecipe}
         />
       )}
       {tab === "diet" && (

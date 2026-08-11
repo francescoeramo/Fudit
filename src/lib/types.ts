@@ -80,6 +80,7 @@ export interface Recipe {
   tags: FoodStyle[];
   allergens: string[];
   baseServings: number;
+  origin?: "seed" | "diet-pdf" | "manual";
 }
 export interface Preferences {
   store: Store;
