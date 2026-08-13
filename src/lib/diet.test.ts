@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildDietPlan, parseDietText } from "./diet";
+import { buildDietPlan, matchCatalogIngredient, parseDietText } from "./diet";
 import { seedPrices } from "./seed";
 
 describe("importazione dieta", () => {
+  it("non abbina frammenti interni di parole a ingredienti diversi", () => {
+    expect(
+      matchCatalogIngredient("alimento speciale", seedPrices),
+    ).toBeUndefined();
+  });
   it("estrae giorni, pasti, alimenti e unità dal testo", () => {
     const meals = parseDietText(`
       Lunedì pranzo: pasta 80 g, pomodori 120 g

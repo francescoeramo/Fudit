@@ -29,7 +29,8 @@ export type FoodStyle =
   | "senza glutine"
   | "senza lattosio"
   | "low FODMAP"
-  | "dolci";
+  | "dolci"
+  | "asiatici";
 export type RecipeCourse = "Primo" | "Secondo" | "Contorno" | "Dolce";
 export interface Nutrition {
   calories: number;

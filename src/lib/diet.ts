@@ -199,12 +199,11 @@ export const matchCatalogIngredient = (
               token.slice(0, -1) === candidateToken.slice(0, -1)),
         ),
       ).length;
+      const containsWholePhrase =
+        ` ${target} `.includes(` ${candidate} `) ||
+        ` ${candidate} `.includes(` ${target} `);
       const score =
-        target === candidate
-          ? 100
-          : target.includes(candidate) || candidate.includes(target)
-            ? 50
-            : common;
+        target === candidate ? 100 : containsWholePhrase ? 50 : common;
       return { item, score };
     })
     .filter(({ score }) => score > 0)

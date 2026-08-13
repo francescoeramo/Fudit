@@ -18,6 +18,7 @@ import {
 } from "./planner";
 import { recipes, seedPrices } from "./seed";
 import { Preferences, PriceItem, Recipe } from "./types";
+import { normalizeIngredientText } from "./ideas";
 const prefs: Preferences = {
   store: "Lidl",
   budget: 100,
@@ -27,9 +28,20 @@ const prefs: Preferences = {
   allergies: [],
 };
 describe("Fudit planning", () => {
-  it("mantiene 178 ricette valide, incluse esattamente 60 ricette dolci", () => {
-    expect(recipes).toHaveLength(178);
-    expect(recipes.filter((recipe) => recipeCourse(recipe) === "Dolce")).toHaveLength(60);
+  it("mantiene 228 ricette valide: 60 dolci e 50 nuove salate", () => {
+    expect(recipes).toHaveLength(228);
+    expect(
+      recipes.filter((recipe) => recipeCourse(recipe) === "Dolce"),
+    ).toHaveLength(60);
+    expect(
+      recipes.filter((recipe) => recipe.id.startsWith("salato-")),
+    ).toHaveLength(50);
+    expect(
+      recipes.filter((recipe) => recipe.tags.includes("asiatici")),
+    ).toHaveLength(20);
+    expect(new Set(seedPrices.map((item) => item.id)).size).toBe(
+      seedPrices.length,
+    );
     expect(new Set(recipes.map((recipe) => recipe.id)).size).toBe(
       recipes.length,
     );
@@ -49,6 +61,18 @@ describe("Fudit planning", () => {
         expect(ingredientAllergens.has("glutine"), recipe.id).toBe(false);
       if (recipe.tags.includes("senza lattosio"))
         expect(ingredientAllergens.has("latte"), recipe.id).toBe(false);
+    });
+  });
+  it("usa procedimenti dettagliati che citano tutti gli ingredienti", () => {
+    recipes.forEach((recipe) => {
+      expect(recipe.steps.length, recipe.id).toBeGreaterThanOrEqual(5);
+      const procedure = normalizeIngredientText(recipe.steps.join(" "));
+      recipe.ingredients.forEach((ingredient) =>
+        expect(
+          procedure.includes(normalizeIngredientText(ingredient.name)),
+          `${recipe.id}: ${ingredient.name}`,
+        ).toBe(true),
+      );
     });
   });
   it("aggrega ingredienti duplicati", () => {
@@ -277,17 +301,22 @@ describe("Fudit planning", () => {
       styles: ["economici", "dolci"],
     });
     expect(plan.desserts).toHaveLength(3);
-    expect(new Set(plan.desserts?.map((dessert) => dessert.recipeId)).size).toBe(3);
+    expect(
+      new Set(plan.desserts?.map((dessert) => dessert.recipeId)).size,
+    ).toBe(3);
     expect(
       plan.desserts?.every(
         (dessert) =>
-          recipeCourse(recipes.find((recipe) => recipe.id === dessert.recipeId)!) === "Dolce",
+          recipeCourse(
+            recipes.find((recipe) => recipe.id === dessert.recipeId)!,
+          ) === "Dolce",
       ),
     ).toBe(true);
     expect(plan.total).toBe(
       Math.round(
         (plan.meals.reduce((sum, meal) => sum + meal.cost, 0) +
-          plan.desserts!.reduce((sum, dessert) => sum + dessert.cost, 0)) * 100,
+          plan.desserts!.reduce((sum, dessert) => sum + dessert.cost, 0)) *
+          100,
       ) / 100,
     );
   });

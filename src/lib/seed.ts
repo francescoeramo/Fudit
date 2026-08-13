@@ -1,5 +1,7 @@
 import { PriceItem, Recipe } from "./types";
 import { dessertPrices, dessertRecipes } from "./desserts";
+import { buildSavorySteps } from "./procedures";
+import { createSavoryRecipes, savoryPrices } from "./savory-expansion";
 
 const n = (calories: number, protein: number, carbs: number, fat: number) => ({
   calories,
@@ -543,7 +545,11 @@ const rawSeedPrices: PriceItem[] = [
   },
 ];
 
-export const seedPrices: PriceItem[] = [...rawSeedPrices, ...dessertPrices].map((item) => ({
+export const seedPrices: PriceItem[] = [
+  ...rawSeedPrices,
+  ...dessertPrices,
+  ...savoryPrices,
+].map((item) => ({
   ...item,
   stores: {
     ...item.stores,
@@ -2519,11 +2525,19 @@ const varietyRecipes: Recipe[] = [
   ),
 ];
 
-export const recipes: Recipe[] = [
+const existingSavoryRecipes: Recipe[] = [
   ...baseRecipes,
   ...moreRecipes,
   ...italianRecipes,
   ...lowFodmapRecipes,
   ...varietyRecipes,
+];
+
+export const recipes: Recipe[] = [
+  ...existingSavoryRecipes.map((recipe) => ({
+    ...recipe,
+    steps: buildSavorySteps(recipe),
+  })),
+  ...createSavoryRecipes(seedPrices),
   ...dessertRecipes,
 ];

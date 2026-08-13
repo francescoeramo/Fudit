@@ -26,6 +26,7 @@ export const foodStyles: FoodStyle[] = [
   "senza lattosio",
   "low FODMAP",
   "dolci",
+  "asiatici",
 ];
 
 export const weekDays = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
