@@ -1,6 +1,7 @@
 "use client";
 
 import { Dispatch, SetStateAction, useMemo, useState } from "react";
+import { X } from "lucide-react";
 import ManualRecipeForm from "@/components/manual-recipe-form";
 import {
   confirmedPriceCoverage,
@@ -71,14 +72,24 @@ export default function RecipesSection({
           )}
         </div>
         {creating && (
-          <ManualRecipeForm
-            catalog={catalog}
-            onCancel={() => setCreating(false)}
-            onSave={(recipe) => {
-              onAddRecipe(recipe);
-              setCreating(false);
-            }}
-          />
+          <div className="closable-panel">
+            <button
+              type="button"
+              className="icon-button panel-close"
+              aria-label="Chiudi nuova ricetta"
+              onClick={() => setCreating(false)}
+            >
+              <X size={18} />
+            </button>
+            <ManualRecipeForm
+              catalog={catalog}
+              onCancel={() => setCreating(false)}
+              onSave={(recipe) => {
+                onAddRecipe(recipe);
+                setCreating(false);
+              }}
+            />
+          </div>
         )}
       </section>
       <div className="recipe-toolbar search-toolbar">
@@ -195,13 +206,13 @@ export default function RecipesSection({
                 ))}
               </div>
               <h3>
-                Ingredienti <span>{prefs.people} persone</span>
+                Ingredienti <span>{people} persone</span>
               </h3>
               <div className="ingredients-list">
                 {scaleIngredients(
                   recipe.ingredients,
                   recipe.baseServings,
-                  prefs.people,
+                  people,
                 ).map((ingredient) => (
                   <div key={ingredient.id}>
                     <span>{ingredient.name}</span>

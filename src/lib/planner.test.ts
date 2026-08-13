@@ -27,6 +27,29 @@ const prefs: Preferences = {
   allergies: [],
 };
 describe("Fudit planning", () => {
+  it("mantiene 118 ricette valide, uniche e coerenti con il catalogo", () => {
+    expect(recipes).toHaveLength(118);
+    expect(new Set(recipes.map((recipe) => recipe.id)).size).toBe(
+      recipes.length,
+    );
+    const catalogIds = new Set(seedPrices.map((item) => item.id));
+    recipes.forEach((recipe) => {
+      expect(recipe.title.trim(), recipe.id).not.toBe("");
+      expect(recipe.time, recipe.id).toBeGreaterThan(0);
+      expect(recipe.steps.length, recipe.id).toBeGreaterThan(0);
+      expect(recipe.ingredients.length, recipe.id).toBeGreaterThan(0);
+      recipe.ingredients.forEach((ingredient) =>
+        expect(catalogIds.has(ingredient.id), recipe.id).toBe(true),
+      );
+      const ingredientAllergens = new Set(
+        recipe.ingredients.flatMap((ingredient) => ingredient.allergens ?? []),
+      );
+      if (recipe.tags.includes("senza glutine"))
+        expect(ingredientAllergens.has("glutine"), recipe.id).toBe(false);
+      if (recipe.tags.includes("senza lattosio"))
+        expect(ingredientAllergens.has("latte"), recipe.id).toBe(false);
+    });
+  });
   it("aggrega ingredienti duplicati", () => {
     const list = aggregateShopping(
       [recipes[0], recipes[0]],

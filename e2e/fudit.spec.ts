@@ -62,6 +62,12 @@ test("conferme distruttive supportano annulla ed Escape", async ({ page }) => {
   await expect(page.getByRole("alertdialog")).toBeHidden();
   await page.getByRole("button", { name: "Svuota e ripristina" }).click();
   await expect(page.getByRole("button", { name: "Annulla" })).toBeFocused();
+  await expect(
+    page.getByRole("button", { name: "Chiudi finestra" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Chiudi finestra" }).click();
+  await expect(page.getByRole("alertdialog")).toBeHidden();
+  await page.getByRole("button", { name: "Svuota e ripristina" }).click();
   await page.getByRole("button", { name: "Annulla" }).press("Enter");
   await expect(page.getByRole("alertdialog")).toBeHidden();
 });
@@ -79,4 +85,18 @@ test("layout mobile non produce scorrimento orizzontale", async ({ page }) => {
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(
     dimensions.clientWidth + 1,
   );
+
+  await page.getByRole("button", { name: "Ricette" }).click();
+  await expect(
+    page.getByRole("button", { name: "Torna a Pianifica" }),
+  ).toBeVisible();
+  const toolbar = page.locator(".recipe-toolbar");
+  await expect(toolbar).toBeVisible();
+  const toolbarBox = await toolbar.boundingBox();
+  expect(toolbarBox?.height).toBeLessThan(220);
+  await expect(page.getByText("118 ricette trovate")).toBeVisible();
+  await page.getByRole("button", { name: "Torna a Pianifica" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Il tuo piano" }),
+  ).toBeVisible();
 });

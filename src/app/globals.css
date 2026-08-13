@@ -110,6 +110,15 @@ body {
   gap: 8px;
   flex-shrink: 0;
 }
+.header-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.mobile-back {
+  display: none;
+}
 .icon-button,
 .row-delete {
   width: 42px;
@@ -370,6 +379,18 @@ legend {
   border-top: 1px solid var(--line);
   margin-top: 18px;
   padding-top: 8px;
+}
+.closable-panel {
+  position: relative;
+}
+.panel-close {
+  position: absolute;
+  top: 10px;
+  right: 0;
+  z-index: 1;
+}
+.closable-panel .manual-recipe-form {
+  padding-top: 58px;
 }
 .manual-recipe-grid {
   display: grid;
@@ -634,6 +655,9 @@ legend {
   }
 }
 @media (max-width: 699px) {
+  .mobile-back {
+    display: grid;
+  }
   .recipe-toolbar {
     top: 8px;
   }
@@ -658,6 +682,10 @@ legend {
   .recipe-toolbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .recipe-toolbar .search-controls {
+    width: 100%;
+    flex: none;
   }
   .manual-ingredient-row {
     grid-template-columns: minmax(0, 1fr) 76px 28px 38px;
@@ -1512,6 +1540,7 @@ button:disabled {
 }
 
 .confirm-dialog {
+  position: relative;
   width: min(440px, 100%);
   padding: 22px;
   border: 1px solid var(--line);
@@ -1519,8 +1548,13 @@ button:disabled {
   background: var(--surface);
   box-shadow: 0 24px 80px #0005;
 }
-
+.dialog-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
 .confirm-dialog h2 {
+  padding-right: 42px;
   margin: 0 0 8px;
 }
 

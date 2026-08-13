@@ -7,7 +7,7 @@ I prezzi inclusi inizialmente sono dati dimostrativi modificabili. Fudit control
 ## Funzionalità
 
 - Generazione di piani settimanali entro un budget, con ottimizzazione globale della combinazione di ricette.
-- 93 ricette complete; quando ci sono abbastanza alternative, ogni piatto compare una sola volta nella settimana.
+- 118 ricette complete; quando ci sono abbastanza alternative, ogni piatto compare una sola volta nella settimana.
 - Continuità intelligente: il nuovo piano evita le ricette della settimana precedente e penalizza piatti con ingredienti o famiglia troppo simili.
 - Preferenze per supermercato, numero di persone, pasti, stile alimentare, allergie e intolleranze.
 - Rigenerazione dei singoli pasti nel rispetto delle impostazioni originali del piano, con memoria delle alternative già mostrate.

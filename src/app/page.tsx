@@ -1,6 +1,6 @@
 "use client";
 import { type SetStateAction } from "react";
-import { AlertTriangle, Moon, Sun, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Moon, Sun, X } from "lucide-react";
 import {
   aggregateShopping,
   priceCoverageFor,
@@ -27,7 +27,7 @@ import {
 import { FoodStyle, PlanRetention, Recipe, ShoppingItem } from "@/lib/types";
 import { ReceiptImportRow } from "@/components/receipt-scanner";
 import { defaultPreferences, stores } from "@/lib/config";
-import { useFuditStore } from "@/hooks/use-fudit-store";
+import { AppTab, useFuditStore } from "@/hooks/use-fudit-store";
 
 export default function Home() {
   const {
@@ -89,6 +89,11 @@ export default function Home() {
       return { ...current, [plan.id]: next };
     });
   };
+  const navigateTo = (nextTab: AppTab) => {
+    setTab(nextTab);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  };
   const selectPlan = (id: string) => setActivePlanId(id);
   const deletePlan = (id: string) => {
     const remaining = plans.filter((item) => item.id !== id);
@@ -130,7 +135,7 @@ export default function Home() {
     setNotice(
       `Dieta importata: € ${result.plan.total.toFixed(2)} per la settimana. ${result.recognizedPrices}/${result.totalIngredients} alimenti collegati al catalogo.`,
     );
-    setTab("plan");
+    navigateTo("plan");
   };
   const generate = () => {
     if (prefs.people <= 0 || prefs.budget <= 0) {
@@ -181,7 +186,7 @@ export default function Home() {
           ? "Piano creato, ma il budget è stato superato: prova lo stile economici o riduci i pasti."
           : `Piano creato e ottimizzato entro il budget. La lista della spesa per ${prefs.store} è pronta.`,
       );
-      setTab("plan");
+      navigateTo("plan");
     }, 40);
   };
   const regenerate = (day: number, slot: string) => {
@@ -394,21 +399,33 @@ export default function Home() {
   return (
     <main className={"shell " + (dark ? "dark" : "")}>
       <header className="app-header">
-        <div>
-          <h1>Fudit</h1>
-          <span className="muted">
-            {tab === "plan"
-              ? "La tua settimana"
-              : tab === "shop"
-                ? "Lista della spesa"
-                : tab === "recipes"
-                  ? `${allRecipes.length} ricette`
-                  : tab === "diet"
-                    ? "Importa dieta PDF"
-                    : tab === "prices"
-                      ? "Catalogo prezzi"
-                      : "Preferenze e dati"}
-          </span>
+        <div className="header-identity">
+          {tab !== "plan" && (
+            <button
+              type="button"
+              className="icon-button mobile-back"
+              aria-label="Torna a Pianifica"
+              onClick={() => navigateTo("plan")}
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )}
+          <div>
+            <h1>Fudit</h1>
+            <span className="muted">
+              {tab === "plan"
+                ? "La tua settimana"
+                : tab === "shop"
+                  ? "Lista della spesa"
+                  : tab === "recipes"
+                    ? `${allRecipes.length} ricette`
+                    : tab === "diet"
+                      ? "Importa dieta PDF"
+                      : tab === "prices"
+                        ? "Catalogo prezzi"
+                        : "Preferenze e dati"}
+            </span>
+          </div>
         </div>
         <div className="header-actions">
           <button
@@ -520,7 +537,7 @@ export default function Home() {
           onRetentionChange={changeRetention}
           onOpenPlan={(id) => {
             selectPlan(id);
-            setTab("plan");
+            navigateTo("plan");
           }}
           onDeletePlan={deletePlan}
           onExport={exportBackup}
@@ -539,7 +556,7 @@ export default function Home() {
           }}
         />
       )}
-      <AppNav active={tab} onChange={setTab} />
+      <AppNav active={tab} onChange={navigateTo} />
     </main>
   );
 }
