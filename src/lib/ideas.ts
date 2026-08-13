@@ -1,5 +1,27 @@
 import { recipeCourse } from "./food";
-import { Recipe, RecipeCourse } from "./types";
+import { PriceItem, Recipe, RecipeCourse } from "./types";
+
+export const getQuickIngredients = (
+  catalog: PriceItem[],
+  recipes: Recipe[],
+) => {
+  const usedIngredientIds = new Set(
+    recipes.flatMap((recipe) =>
+      recipe.ingredients.map((ingredient) => ingredient.id),
+    ),
+  );
+  const seenIngredientIds = new Set<string>();
+
+  return catalog
+    .filter((item) => {
+      if (!usedIngredientIds.has(item.id) || seenIngredientIds.has(item.id)) {
+        return false;
+      }
+      seenIngredientIds.add(item.id);
+      return true;
+    })
+    .sort((left, right) => left.name.localeCompare(right.name, "it"));
+};
 
 export const normalizeIngredientText = (value: string) =>
   value

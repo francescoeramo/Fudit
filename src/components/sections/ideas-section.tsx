@@ -4,7 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { Dices, Search } from "lucide-react";
 import { scaleIngredients } from "@/lib/calculations";
 import { recipeCourse } from "@/lib/food";
-import { suggestRecipes } from "@/lib/ideas";
+import { getQuickIngredients, suggestRecipes } from "@/lib/ideas";
 import { PriceItem, Recipe, RecipeCourse } from "@/lib/types";
 
 const courses: RecipeCourse[] = ["Primo", "Secondo", "Contorno", "Dolce"];
@@ -23,16 +23,7 @@ export default function IdeasSection({
   const [selectedId, setSelectedId] = useState("");
   const [servings, setServings] = useState<number | "">(2);
   const quickIngredients = useMemo(
-    () =>
-      catalog
-        .filter((item) =>
-          recipes.some((recipe) =>
-            recipe.ingredients.some((ingredient) => ingredient.id === item.id),
-          ),
-        )
-        .slice()
-        .sort((left, right) => left.name.localeCompare(right.name, "it"))
-        .slice(0, 30),
+    () => getQuickIngredients(catalog, recipes),
     [catalog, recipes],
   );
   const requested = useMemo(
@@ -89,7 +80,9 @@ export default function IdeasSection({
             placeholder="Es. UOVA, Farina, cioccolato fondente"
           />
           <fieldset>
-            <legend>Ingredienti rapidi</legend>
+            <legend>
+              Ingredienti rapidi ({quickIngredients.length} disponibili)
+            </legend>
             <div className="ideas-checklist">
               {quickIngredients.map((item) => (
                 <label className="pill meal-choice" key={item.id}>
@@ -165,7 +158,9 @@ export default function IdeasSection({
                     onClick={() => setSelectedId(recipe.id)}
                   >
                     <span>{recipe.title}</span>
-                    <small>{recipeCourse(recipe)} · {recipe.time} min</small>
+                    <small>
+                      {recipeCourse(recipe)} · {recipe.time} min
+                    </small>
                   </button>
                 ))}
               </div>
@@ -174,7 +169,9 @@ export default function IdeasSection({
                   <div className="section-heading">
                     <div>
                       <h2>{selected.title}</h2>
-                      <p className="muted">{recipeCourse(selected)} · {selected.difficulty}</p>
+                      <p className="muted">
+                        {recipeCourse(selected)} · {selected.difficulty}
+                      </p>
                     </div>
                     <label className="idea-servings">
                       Porzioni
@@ -185,9 +182,14 @@ export default function IdeasSection({
                         max="30"
                         value={servings}
                         onChange={(event) =>
-                          setServings(event.target.value === ""
-                            ? ""
-                            : Math.min(30, Math.max(1, Number(event.target.value) || 1)))
+                          setServings(
+                            event.target.value === ""
+                              ? ""
+                              : Math.min(
+                                  30,
+                                  Math.max(1, Number(event.target.value) || 1),
+                                ),
+                          )
                         }
                         onBlur={() => servings === "" && setServings(1)}
                       />
@@ -202,14 +204,22 @@ export default function IdeasSection({
                     ).map((ingredient) => (
                       <div key={ingredient.id}>
                         <span>{ingredient.name}</span>
-                        <b>{ingredient.quantity}{ingredient.unit}</b>
+                        <b>
+                          {ingredient.quantity}
+                          {ingredient.unit}
+                        </b>
                       </div>
                     ))}
                   </div>
-                  <div className="recipe-separator"><span>Procedimento</span></div>
+                  <div className="recipe-separator">
+                    <span>Procedimento</span>
+                  </div>
                   <ol className="steps">
                     {selected.steps.map((step, index) => (
-                      <li key={`${index}-${step}`}><span>{index + 1}</span><p>{step}</p></li>
+                      <li key={`${index}-${step}`}>
+                        <span>{index + 1}</span>
+                        <p>{step}</p>
+                      </li>
                     ))}
                   </ol>
                 </article>

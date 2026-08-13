@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { recipes, seedPrices } from "@/lib/seed";
@@ -245,12 +251,25 @@ describe("flussi principali Fudit", () => {
     render(<Home />);
     await screen.findByText("Il tuo piano");
     await user.click(screen.getByRole("button", { name: "Idee" }));
+    const usedIngredientIds = new Set(
+      recipes.flatMap((recipe) =>
+        recipe.ingredients.map((ingredient) => ingredient.id),
+      ),
+    );
+    const quickIngredients = screen.getByRole("group", {
+      name: /Ingredienti rapidi/,
+    });
+    expect(within(quickIngredients).getAllByRole("checkbox")).toHaveLength(
+      usedIngredientIds.size,
+    );
     await user.type(
       screen.getByLabelText("Ingredienti scritti"),
       "UOVA, Farina",
     );
     await user.click(screen.getByRole("checkbox", { name: "Dolce" }));
-    await user.click(screen.getByRole("button", { name: "Suggerisci ricette" }));
+    await user.click(
+      screen.getByRole("button", { name: "Suggerisci ricette" }),
+    );
     expect(screen.getByText(/ricette compatibili/)).toBeVisible();
     const servings = screen.getByLabelText("Porzioni ricetta suggerita");
     expect(servings).toHaveValue(2);
