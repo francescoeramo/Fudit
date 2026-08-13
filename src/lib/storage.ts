@@ -8,7 +8,7 @@ import {
 } from "./types";
 
 export const STORAGE_KEY = "fudit:data";
-export const STORAGE_VERSION = 5;
+export const STORAGE_VERSION = 6;
 export const MAX_STORED_BYTES = 4_500_000;
 
 export interface AppStorageData {
@@ -117,6 +117,21 @@ const migratePlan = (plan: MealPlan, prefs: Preferences): MealPlan => ({
             .slice(-100)
         : undefined,
     })),
+  desserts: Array.isArray(plan.desserts)
+    ? plan.desserts
+        .filter(
+          (dessert) =>
+            isRecord(dessert) &&
+            typeof dessert.recipeId === "string" &&
+            Number.isFinite(dessert.cost) &&
+            Number(dessert.cost) >= 0,
+        )
+        .slice(0, 3)
+        .map((dessert) => ({
+          recipeId: dessert.recipeId,
+          cost: Number(dessert.cost),
+        }))
+    : undefined,
   source: plan.source ?? "generated",
   preferences:
     plan.preferences ??
@@ -217,8 +232,8 @@ const migrateEnvelope = (
     );
 
   // V2 aggiunge metadati e preferenze; V3 la provenienza; V4 le confezioni;
-  // V5 conserva la cronologia di rigenerazione e bonifica gli URL importati.
-  if (![1, 2, 3, 4, 5].includes(Number(envelope.version)))
+  // V5 conserva la cronologia; V6 salva le proposte dolci insieme al piano.
+  if (![1, 2, 3, 4, 5, 6].includes(Number(envelope.version)))
     throw new Error("Questa versione del backup non è più supportata.");
   return {
     app: "Fudit",

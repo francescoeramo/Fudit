@@ -240,6 +240,35 @@ describe("flussi principali Fudit", () => {
     ).toHaveLength(7);
   });
 
+  it("suggerisce ricette da ingredienti senza distinguere maiuscole e adatta le porzioni", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+    await screen.findByText("Il tuo piano");
+    await user.click(screen.getByRole("button", { name: "Idee" }));
+    await user.type(
+      screen.getByLabelText("Ingredienti scritti"),
+      "UOVA, Farina",
+    );
+    await user.click(screen.getByRole("checkbox", { name: "Dolce" }));
+    await user.click(screen.getByRole("button", { name: "Suggerisci ricette" }));
+    expect(screen.getByText(/ricette compatibili/)).toBeVisible();
+    const servings = screen.getByLabelText("Porzioni ricetta suggerita");
+    expect(servings).toHaveValue(2);
+    await user.clear(servings);
+    await user.type(servings, "4");
+    expect(servings).toHaveValue(4);
+  });
+
+  it("genera e salva tre dolci insieme al piano", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+    await screen.findByText("Il tuo piano");
+    await user.click(screen.getByRole("button", { name: "dolci" }));
+    await user.click(screen.getByRole("button", { name: "Genera piano" }));
+    expect(await screen.findByText("3 dolci della settimana")).toBeVisible();
+    await waitFor(() => expect(storedData().plans[0].desserts).toHaveLength(3));
+  });
+
   it("segnala quando il browser rifiuta il salvataggio", async () => {
     const user = userEvent.setup();
     render(<Home />);

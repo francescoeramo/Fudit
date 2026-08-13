@@ -14,6 +14,8 @@ import ShoppingSection from "@/components/sections/shopping-section";
 import RecipesSection from "@/components/sections/recipes-section";
 import PricesSection from "@/components/sections/prices-section";
 import SettingsSection from "@/components/sections/settings-section";
+import IdeasSection from "@/components/sections/ideas-section";
+import GuideSection from "@/components/sections/guide-section";
 import { BuiltDietPlan } from "@/lib/diet";
 import { chooseReplacementRecipe, createPlan } from "@/lib/planner";
 import { prunePlans } from "@/lib/plans";
@@ -72,8 +74,11 @@ export default function Home() {
     plans.find((item) => item.id === activePlanId) ?? plans[0] ?? null;
   const shopping = plan ? (shoppingByPlan[plan.id] ?? []) : [];
   const planRecipes = plan
-    ? plan.meals
-        .map((meal) => allRecipes.find((recipe) => recipe.id === meal.recipeId))
+    ? [
+        ...plan.meals.map((meal) => meal.recipeId),
+        ...(plan.desserts?.map((dessert) => dessert.recipeId) ?? []),
+      ]
+        .map((recipeId) => allRecipes.find((recipe) => recipe.id === recipeId))
         .filter((recipe) => recipe !== undefined)
     : [];
   const planPriceCoverage = priceCoverageFor(
@@ -168,9 +173,12 @@ export default function Home() {
         return;
       }
       const nextShopping = aggregateShopping(
-        p.meals
-          .map((meal) =>
-            planRecipesCatalog.find((recipe) => recipe.id === meal.recipeId)!,
+        [
+          ...p.meals.map((meal) => meal.recipeId),
+          ...(p.desserts?.map((dessert) => dessert.recipeId) ?? []),
+        ]
+          .map((recipeId) =>
+            planRecipesCatalog.find((recipe) => recipe.id === recipeId)!,
           )
           .filter(Boolean),
         catalog,
@@ -221,7 +229,10 @@ export default function Home() {
           }
         : m,
     );
-    const total = roundMoney(meals.reduce((s, m) => s + m.cost, 0));
+    const total = roundMoney(
+      meals.reduce((sum, meal) => sum + meal.cost, 0) +
+        (plan.desserts?.reduce((sum, dessert) => sum + dessert.cost, 0) ?? 0),
+    );
     const p = {
       ...plan,
       meals,
@@ -231,8 +242,13 @@ export default function Home() {
     setPlans((current) => current.map((item) => (item.id === p.id ? p : item)));
     setShopping(
       aggregateShopping(
-        meals
-          .map((m) => planRecipesCatalog.find((r) => r.id === m.recipeId)!)
+        [
+          ...meals.map((meal) => meal.recipeId),
+          ...(p.desserts?.map((dessert) => dessert.recipeId) ?? []),
+        ]
+          .map((recipeId) =>
+            planRecipesCatalog.find((recipe) => recipe.id === recipeId)!,
+          )
           .filter(Boolean),
         catalog,
         planStore,
@@ -419,8 +435,12 @@ export default function Home() {
                   ? "Lista della spesa"
                   : tab === "recipes"
                     ? `${allRecipes.length} ricette`
+                    : tab === "ideas"
+                      ? "Ricette con ciò che hai"
                     : tab === "diet"
                       ? "Importa dieta PDF"
+                      : tab === "guide"
+                        ? "Come usare Fudit"
                       : tab === "prices"
                         ? "Catalogo prezzi"
                         : "Preferenze e dati"}
@@ -505,6 +525,9 @@ export default function Home() {
           onAddRecipe={addManualRecipe}
         />
       )}
+      {tab === "ideas" && (
+        <IdeasSection recipes={allRecipes} catalog={catalog} />
+      )}
       {tab === "diet" && (
         <DietImporter
           stores={stores}
@@ -530,6 +553,7 @@ export default function Home() {
           flyerDataset={flyerDataset}
         />
       )}
+      {tab === "guide" && <GuideSection />}
       {tab === "settings" && (
         <SettingsSection
           plans={plans}

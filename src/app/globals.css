@@ -456,6 +456,142 @@ legend {
   font-weight: 800;
   margin-right: 5px;
 }
+.course-pill {
+  background: color-mix(in srgb, var(--surface) 55%, var(--mint));
+  border: 1px solid var(--line);
+  margin-right: 5px;
+  font-weight: 750;
+}
+.weekly-desserts {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid color-mix(in srgb, var(--coral) 55%, var(--line));
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--coral) 7%, var(--surface));
+}
+.weekly-desserts-heading {
+  margin-bottom: 8px;
+}
+.weekly-desserts-heading div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.weekly-desserts-heading small,
+.dessert-row small {
+  color: var(--muted);
+}
+.dessert-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.plan-style-help {
+  margin: 9px 0 0;
+}
+.ideas-builder {
+  margin-bottom: 16px;
+}
+.ideas-builder h2,
+.guide-intro h2 {
+  margin: 0 0 5px;
+}
+.ideas-builder > p {
+  margin-top: 0;
+}
+.ideas-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 180px;
+  overflow: auto;
+  padding: 2px;
+}
+.ideas-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+.ideas-layout {
+  display: grid;
+  gap: 14px;
+  align-items: start;
+}
+.ideas-list {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  max-height: 650px;
+  overflow: auto;
+}
+.ideas-list button {
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--ink);
+  padding: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+.ideas-list button:hover,
+.ideas-list button.active {
+  background: var(--mint);
+  border-color: var(--line);
+}
+.ideas-list span,
+.ideas-list small {
+  display: block;
+}
+.ideas-list span {
+  font-weight: 750;
+}
+.ideas-list small {
+  color: var(--muted);
+  margin-top: 3px;
+}
+.idea-servings {
+  width: 86px;
+  margin: 0;
+}
+.idea-servings input {
+  margin-top: 4px;
+}
+.idea-recipe h3 {
+  font-size: 13px;
+  margin: 18px 0 8px;
+}
+.guide {
+  display: grid;
+  gap: 14px;
+}
+.guide-intro {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.guide-intro > svg,
+.guide-step > svg {
+  color: var(--coral);
+  flex: 0 0 auto;
+}
+.guide-step p,
+.guide-details p,
+.guide-details li {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.guide-step h2 {
+  margin-top: 10px;
+}
+.guide-details ul {
+  padding-left: 20px;
+  margin-bottom: 0;
+}
 .people-control {
   display: flex;
   align-items: center;
@@ -482,6 +618,8 @@ legend {
 .recipe-card {
   display: flex;
   flex-direction: column;
+  content-visibility: auto;
+  contain-intrinsic-size: 700px;
 }
 .recipe-top {
   display: flex;
@@ -653,6 +791,9 @@ legend {
   .grid.three {
     grid-template-columns: repeat(3, 1fr);
   }
+  .ideas-layout {
+    grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+  }
 }
 @media (max-width: 699px) {
   .mobile-back {
@@ -708,6 +849,7 @@ legend {
   }
   .nav .tab {
     padding-inline: 4px;
+    font-size: 9px;
   }
 }
 

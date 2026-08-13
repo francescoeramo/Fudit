@@ -39,7 +39,14 @@ import {
 } from "@/lib/types";
 
 export type AppTab =
-  "plan" | "shop" | "recipes" | "diet" | "prices" | "settings";
+  | "plan"
+  | "ideas"
+  | "shop"
+  | "recipes"
+  | "diet"
+  | "guide"
+  | "prices"
+  | "settings";
 
 interface FuditState extends AppStorageData {
   tab: AppTab;
@@ -114,9 +121,12 @@ const hydrate = (data: AppStorageData): AppStorageData => {
   plans.forEach((plan) => {
     if (!Array.isArray(shoppingByPlan[plan.id])) {
       shoppingByPlan[plan.id] = aggregateShopping(
-        plan.meals
-          .map((meal) =>
-            availableRecipes.find((recipe) => recipe.id === meal.recipeId),
+        [
+          ...plan.meals.map((meal) => meal.recipeId),
+          ...(plan.desserts?.map((dessert) => dessert.recipeId) ?? []),
+        ]
+          .map((recipeId) =>
+            availableRecipes.find((recipe) => recipe.id === recipeId),
           )
           .filter((recipe) => recipe !== undefined),
         catalog,
@@ -219,10 +229,25 @@ const reducer = (state: FuditState, action: Action): FuditState => {
             }
           : meal;
       });
-      const total = roundMoney(meals.reduce((sum, meal) => sum + meal.cost, 0));
+      const desserts = plan.desserts?.map((dessert) => {
+        const recipe = availableRecipes.find(
+          (item) => item.id === dessert.recipeId,
+        );
+        return recipe
+          ? {
+              ...dessert,
+              cost: recipeCost(recipe, state.catalog, store, people, date),
+            }
+          : dessert;
+      });
+      const total = roundMoney(
+        meals.reduce((sum, meal) => sum + meal.cost, 0) +
+          (desserts?.reduce((sum, dessert) => sum + dessert.cost, 0) ?? 0),
+      );
       return {
         ...plan,
         meals,
+        desserts,
         total,
         overBudget: total > (plan.budget ?? defaultPreferences.budget),
       };

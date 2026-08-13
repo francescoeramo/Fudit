@@ -1,4 +1,4 @@
-import { Category, Recipe } from "./types";
+import { Category, Recipe, RecipeCourse } from "./types";
 
 const categoryRules: Array<[Category, RegExp]> = [
   [
@@ -25,6 +25,19 @@ export const categorizeFood = (
   fallback: Category = "Altro",
 ): Category =>
   categoryRules.find(([, rule]) => rule.test(name))?.[0] ?? fallback;
+
+export const recipeCourse = (recipe: Recipe): RecipeCourse => {
+  if (recipe.course) return recipe.course;
+  if (recipe.tags.includes("dolci")) return "Dolce";
+  const title = recipe.title.toLowerCase();
+  if (/^(pollo|tacchin|salmone|merluzz|tonno|tofu|uova|frittata|burger|manzo|maiale)/.test(title))
+    return "Secondo";
+  if (/pasta|riso|risotto|zuppa|vellutata|dahl|cous cous|polenta|quinoa/.test(title))
+    return "Primo";
+  if (/insalat|verdure|contorno|patate al forno|zucchine grigliate/.test(title))
+    return "Contorno";
+  return "Secondo";
+};
 
 export const mealFamilies = (recipe: Recipe): string[] => {
   const ids = new Set(recipe.ingredients.map((item) => item.id));

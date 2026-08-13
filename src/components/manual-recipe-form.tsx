@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { foodStyles } from "@/lib/config";
-import { FoodStyle, PriceItem, Recipe } from "@/lib/types";
+import { FoodStyle, PriceItem, Recipe, RecipeCourse } from "@/lib/types";
 
 interface IngredientDraft {
   catalogId: string;
@@ -23,6 +23,7 @@ export default function ManualRecipeForm({
   const [title, setTitle] = useState("");
   const [time, setTime] = useState(30);
   const [difficulty, setDifficulty] = useState<Recipe["difficulty"]>("Facile");
+  const [course, setCourse] = useState<RecipeCourse>("Secondo");
   const [baseServings, setBaseServings] = useState(2);
   const [tags, setTags] = useState<FoodStyle[]>([]);
   const [ingredients, setIngredients] = useState<IngredientDraft[]>([
@@ -34,6 +35,10 @@ export default function ManualRecipeForm({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const effectiveTags =
+      course === "Dolce" && !tags.includes("dolci")
+        ? [...tags, "dolci" as const]
+        : tags;
     const selectedIngredients = ingredients
       .map((draft) => ({
         draft,
@@ -48,7 +53,7 @@ export default function ManualRecipeForm({
         } => Boolean(entry.catalogItem) && entry.draft.quantity > 0,
       );
     const cleanSteps = steps.map((step) => step.trim()).filter(Boolean);
-    if (!tags.length) {
+    if (!effectiveTags.length) {
       setError(
         "Seleziona almeno una categoria per rendere la ricetta recuperabile nei piani.",
       );
@@ -86,11 +91,12 @@ export default function ManualRecipeForm({
       ingredients: recipeIngredients,
       steps: cleanSteps,
       nutrition,
-      tags,
+      tags: effectiveTags,
       allergens: [
         ...new Set(recipeIngredients.flatMap((item) => item.allergens ?? [])),
       ],
       baseServings,
+      course,
       origin: "manual",
     });
   };
@@ -148,6 +154,19 @@ export default function ManualRecipeForm({
           >
             <option>Facile</option>
             <option>Media</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="manual-recipe-course">Portata</label>
+          <select
+            id="manual-recipe-course"
+            value={course}
+            onChange={(event) => setCourse(event.target.value as RecipeCourse)}
+          >
+            <option>Primo</option>
+            <option>Secondo</option>
+            <option>Contorno</option>
+            <option>Dolce</option>
           </select>
         </div>
       </div>

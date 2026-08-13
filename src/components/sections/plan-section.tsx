@@ -173,6 +173,27 @@ export default function PlanSection({
                     })}
                 </div>
               ))}
+              {plan.desserts && plan.desserts.length > 0 && (
+                <section className="weekly-desserts" aria-label="Dolci della settimana">
+                  <div className="weekly-desserts-heading">
+                    <div>
+                      <b>3 dolci della settimana</b>
+                      <small>Salvati insieme a questo piano</small>
+                    </div>
+                  </div>
+                  {plan.desserts.map((dessert) => {
+                    const recipe = recipes.find(
+                      (item) => item.id === dessert.recipeId,
+                    );
+                    return recipe ? (
+                      <div className="dessert-row" key={dessert.recipeId}>
+                        <span>{recipe.title}</span>
+                        <small>€ {dessert.cost.toFixed(2)}</small>
+                      </div>
+                    ) : null;
+                  })}
+                </section>
+              )}
               <div className="autosave-note">Salvato automaticamente</div>
             </>
           )}
@@ -276,6 +297,10 @@ export default function PlanSection({
                 </button>
               ))}
             </div>
+            <p className="field-help plan-style-help">
+              Attiva “dolci” per aggiungere 3 proposte nel riquadro sotto il
+              piano e nella lista della spesa.
+            </p>
           </fieldset>
           {prefs.styles.includes("low FODMAP") && (
             <aside

@@ -1,6 +1,12 @@
 "use client";
 
-import { Dispatch, SetStateAction, useMemo, useState } from "react";
+import {
+  Dispatch,
+  SetStateAction,
+  useDeferredValue,
+  useMemo,
+  useState,
+} from "react";
 import { X } from "lucide-react";
 import ManualRecipeForm from "@/components/manual-recipe-form";
 import {
@@ -9,13 +15,17 @@ import {
   scaleIngredients,
 } from "@/lib/calculations";
 import { foodStyles } from "@/lib/config";
+import { recipeCourse } from "@/lib/food";
 import {
   FoodStyle,
   MealPlan,
   Preferences,
   PriceItem,
   Recipe,
+  RecipeCourse,
 } from "@/lib/types";
+
+const courses: RecipeCourse[] = ["Primo", "Secondo", "Contorno", "Dolce"];
 
 export default function RecipesSection({
   recipes,
@@ -33,20 +43,23 @@ export default function RecipesSection({
   onAddRecipe: (recipe: Recipe) => void;
 }) {
   const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
   const [style, setStyle] = useState<FoodStyle | "all">("all");
+  const [course, setCourse] = useState<RecipeCourse | "all">("all");
   const [creating, setCreating] = useState(false);
   const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
+    const needle = deferredQuery.trim().toLowerCase();
     return recipes.filter(
       (recipe) =>
         (style === "all" || recipe.tags.includes(style)) &&
+        (course === "all" || recipeCourse(recipe) === course) &&
         (!needle ||
           recipe.title.toLowerCase().includes(needle) ||
           recipe.ingredients.some((ingredient) =>
             ingredient.name.toLowerCase().includes(needle),
           )),
     );
-  }, [query, recipes, style]);
+  }, [course, deferredQuery, recipes, style]);
   const store = plan?.store ?? prefs.store;
   const people = plan?.people ?? prefs.people;
 
@@ -115,6 +128,18 @@ export default function RecipesSection({
               </option>
             ))}
           </select>
+          <select
+            aria-label="Filtra ricette per portata"
+            value={course}
+            onChange={(event) =>
+              setCourse(event.target.value as RecipeCourse | "all")
+            }
+          >
+            <option value="all">Tutte le portate</option>
+            {courses.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
         </div>
         <div className="people-control">
           <button
@@ -149,7 +174,7 @@ export default function RecipesSection({
             onClick={() =>
               setPrefs((current) => ({
                 ...current,
-                people: current.people + 1,
+                people: Math.min(30, current.people + 1),
               }))
             }
           >
@@ -199,6 +224,7 @@ export default function RecipesSection({
                 {recipe.origin === "manual" && (
                   <span className="pill personal-recipe">personale</span>
                 )}
+                <span className="pill course-pill">{recipeCourse(recipe)}</span>
                 {recipe.tags.map((tag) => (
                   <span className="pill" key={tag}>
                     {tag}

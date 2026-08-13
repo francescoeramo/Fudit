@@ -1,4 +1,5 @@
 import { PriceItem, Recipe } from "./types";
+import { dessertPrices, dessertRecipes } from "./desserts";
 
 const n = (calories: number, protein: number, carbs: number, fat: number) => ({
   calories,
@@ -542,7 +543,7 @@ const rawSeedPrices: PriceItem[] = [
   },
 ];
 
-export const seedPrices: PriceItem[] = rawSeedPrices.map((item) => ({
+export const seedPrices: PriceItem[] = [...rawSeedPrices, ...dessertPrices].map((item) => ({
   ...item,
   stores: {
     ...item.stores,
@@ -2524,4 +2525,5 @@ export const recipes: Recipe[] = [
   ...italianRecipes,
   ...lowFodmapRecipes,
   ...varietyRecipes,
+  ...dessertRecipes,
 ];

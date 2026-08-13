@@ -3,6 +3,8 @@ import {
   ChefHat,
   CircleDollarSign,
   FileHeart,
+  BookOpen,
+  Lightbulb,
   Settings,
   ShoppingBasket,
 } from "lucide-react";
@@ -10,9 +12,11 @@ import { AppTab } from "@/hooks/use-fudit-store";
 
 const items = [
   ["plan", CalendarDays, "Pianifica"],
+  ["ideas", Lightbulb, "Idee"],
   ["shop", ShoppingBasket, "Spesa"],
   ["recipes", ChefHat, "Ricette"],
   ["diet", FileHeart, "Dieta"],
+  ["guide", BookOpen, "Guida"],
   ["prices", CircleDollarSign, "Prezzi"],
   ["settings", Settings, "Impostazioni"],
 ] as const;

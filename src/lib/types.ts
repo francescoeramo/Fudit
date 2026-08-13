@@ -28,7 +28,9 @@ export type FoodStyle =
   | "vegani"
   | "senza glutine"
   | "senza lattosio"
-  | "low FODMAP";
+  | "low FODMAP"
+  | "dolci";
+export type RecipeCourse = "Primo" | "Secondo" | "Contorno" | "Dolce";
 export interface Nutrition {
   calories: number;
   protein: number;
@@ -80,6 +82,8 @@ export interface Recipe {
   tags: FoodStyle[];
   allergens: string[];
   baseServings: number;
+  /** Portata usata nei filtri e per separare i dolci dal piano principale. */
+  course?: RecipeCourse;
   origin?: "seed" | "diet-pdf" | "manual";
 }
 export interface Preferences {
@@ -102,6 +106,8 @@ export interface MealPlan {
   id: string;
   createdAt: string;
   meals: PlannedMeal[];
+  /** Tre proposte settimanali, salvate insieme al piano quando "dolci" è attivo. */
+  desserts?: Array<{ recipeId: string; cost: number }>;
   total: number;
   overBudget: boolean;
   store?: Store;

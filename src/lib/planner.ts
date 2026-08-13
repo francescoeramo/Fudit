@@ -5,7 +5,7 @@ import {
   roundMoney,
 } from "./calculations";
 import { recipeMatchesAllergy } from "./allergens";
-import { mealFamilies, mealVarietyKeys } from "./food";
+import { mealFamilies, mealVarietyKeys, recipeCourse } from "./food";
 import { MealPlan, MealSlot, Preferences, PriceItem, Recipe } from "./types";
 export const isCompatible = (
   recipe: Recipe,
@@ -205,8 +205,10 @@ export const chooseReplacementRecipe = ({
 
   const previousHistory = currentMeal.regenerationHistory ?? [];
   const history = [...new Set([...previousHistory, currentMeal.recipeId])];
-  const compatible = recipes.filter((recipe) =>
-    isCompatible(recipe, preferences, catalog),
+  const compatible = recipes.filter(
+    (recipe) =>
+      recipeCourse(recipe) !== "Dolce" &&
+      isCompatible(recipe, preferences, catalog),
   );
   const usedElsewhere = new Set(
     plan.meals
@@ -480,7 +482,43 @@ export const createPlan = (
   previousPlan?: MealPlan,
 ): MealPlan => {
   const now = new Date();
-  const compatible = recipes.filter((r) => isCompatible(r, prefs, catalog));
+  const wantsDesserts = prefs.styles.includes("dolci");
+  const dessertOptions = wantsDesserts
+    ? recipes.filter(
+        (recipe) =>
+          recipeCourse(recipe) === "Dolce" &&
+          isCompatible(recipe, prefs, catalog),
+      )
+    : [];
+  const previousDesserts = new Set(
+    previousPlan?.desserts?.map((item) => item.recipeId) ?? [],
+  );
+  const dessertPool = dessertOptions.some(
+    (recipe) => !previousDesserts.has(recipe.id),
+  )
+    ? dessertOptions.filter((recipe) => !previousDesserts.has(recipe.id))
+    : dessertOptions;
+  const dessertCandidates = dessertPool
+    .map((recipe) => ({
+      recipe,
+      cost: recipeCost(recipe, catalog, prefs.store, prefs.people, now),
+      rank: stableHash(`${getWeekKey(now)}:${prefs.store}:${recipe.id}`),
+    }))
+    .sort((left, right) => left.rank - right.rank || left.cost - right.cost)
+    .slice(0, 3);
+  const desserts = dessertCandidates.map(({ recipe, cost }) => ({
+    recipeId: recipe.id,
+    cost,
+  }));
+  const dessertTotal = roundMoney(
+    desserts.reduce((sum, dessert) => sum + dessert.cost, 0),
+  );
+  const mealBudget = Math.max(0, prefs.budget - dessertTotal);
+  const compatible = recipes.filter(
+    (recipe) =>
+      recipeCourse(recipe) !== "Dolce" &&
+      isCompatible(recipe, prefs, catalog),
+  );
   const completelyPriced = compatible.filter((recipe) =>
     recipe.ingredients.every(
       (ingredient) =>
@@ -521,7 +559,7 @@ export const createPlan = (
   const selected = bestCombinationWithinBudget(
     candidates,
     totalSlots,
-    prefs.budget,
+    mealBudget,
   );
   const cheapest = [...candidates].sort((a, b) => a.cost - b.cost)[0];
   const fallback = cheapest
@@ -531,7 +569,7 @@ export const createPlan = (
     selected.length === totalSlots ? selected : fallback,
     candidates,
     prefs.meals.length,
-    prefs.budget,
+    mealBudget,
     previousRecipes,
   );
   const meals = ordered.map((candidate, index) => ({
@@ -540,11 +578,14 @@ export const createPlan = (
     recipeId: candidate.recipe.id,
     cost: candidate.cost,
   }));
-  const total = roundMoney(meals.reduce((s, m) => s + m.cost, 0));
+  const total = roundMoney(
+    meals.reduce((sum, meal) => sum + meal.cost, 0) + dessertTotal,
+  );
   return {
     id: crypto.randomUUID(),
     createdAt: now.toISOString(),
     meals,
+    desserts,
     total,
     overBudget: total > prefs.budget,
     store: prefs.store,

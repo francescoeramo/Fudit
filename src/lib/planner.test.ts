@@ -9,7 +9,7 @@ import {
   scaleIngredients,
   storeUnitPrice,
 } from "./calculations";
-import { mealFamilies, mealVarietyKeys } from "./food";
+import { mealFamilies, mealVarietyKeys, recipeCourse } from "./food";
 import {
   chooseReplacementRecipe,
   createPlan,
@@ -27,8 +27,9 @@ const prefs: Preferences = {
   allergies: [],
 };
 describe("Fudit planning", () => {
-  it("mantiene 118 ricette valide, uniche e coerenti con il catalogo", () => {
-    expect(recipes).toHaveLength(118);
+  it("mantiene 178 ricette valide, incluse esattamente 60 ricette dolci", () => {
+    expect(recipes).toHaveLength(178);
+    expect(recipes.filter((recipe) => recipeCourse(recipe) === "Dolce")).toHaveLength(60);
     expect(new Set(recipes.map((recipe) => recipe.id)).size).toBe(
       recipes.length,
     );
@@ -268,6 +269,27 @@ describe("Fudit planning", () => {
       positionSimilarity.reduce((sum, value) => sum + value, 0) /
         positionSimilarity.length,
     ).toBeLessThan(0.5);
+  }, 12_000);
+  it("salva tre dolci distinti nel piano e li include nel totale", () => {
+    const plan = createPlan(recipes, seedPrices, {
+      ...prefs,
+      budget: 120,
+      styles: ["economici", "dolci"],
+    });
+    expect(plan.desserts).toHaveLength(3);
+    expect(new Set(plan.desserts?.map((dessert) => dessert.recipeId)).size).toBe(3);
+    expect(
+      plan.desserts?.every(
+        (dessert) =>
+          recipeCourse(recipes.find((recipe) => recipe.id === dessert.recipeId)!) === "Dolce",
+      ),
+    ).toBe(true);
+    expect(plan.total).toBe(
+      Math.round(
+        (plan.meals.reduce((sum, meal) => sum + meal.cost, 0) +
+          plan.desserts!.reduce((sum, dessert) => sum + dessert.cost, 0)) * 100,
+      ) / 100,
+    );
   });
   it("usa prezzi diversi per insegna e settimana", () => {
     const item = seedPrices[0];
@@ -308,7 +330,9 @@ describe("Fudit planning", () => {
   });
   it("costruisce una combinazione entro budget quando è matematicamente possibile", () => {
     const cheapest = Math.min(
-      ...recipes.map((recipe) => recipeCost(recipe, seedPrices, "Lidl", 2)),
+      ...recipes
+        .filter((recipe) => recipeCourse(recipe) !== "Dolce")
+        .map((recipe) => recipeCost(recipe, seedPrices, "Lidl", 2)),
     );
     const budget = Number((cheapest * 7 + 0.01).toFixed(2));
     const plan = createPlan(recipes, seedPrices, { ...prefs, budget });
