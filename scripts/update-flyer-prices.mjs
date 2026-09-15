@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import {
+  parseCoopOfferCards,
+  parseCoopPackage,
+} from "./lib/coop-lombardia-parser.mjs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { execFile } from "node:child_process";
@@ -39,9 +43,9 @@ const sources = [
   },
   {
     store: "Coop",
-    area: "Unicoop Etruria · Roma Agosta",
-    url: "https://coopetruria.coop.it/negozi/romaagosta-roma/volantino-romaagosta-98",
-    parser: "linkedPdf",
+    area: "Coop Lombardia · Milano · Via Privata Benadir 5",
+    url: "https://negozi.volantinopiu.com/ccno-8001120020468.html?landing=cooplombardia",
+    parser: "coopLombardia",
   },
   {
     store: "Conad",
@@ -87,7 +91,7 @@ const catalogMatchers = [
   ["salmone", /\bsalmone\b/],
   ["uova", /\buova?\b/],
   ["tofu", /\btofu\b/],
-  ["pomodori", /\b(passata di pomodoro|pomodori|pomodorini)\b/],
+  ["pomodori", /\b(passata di pomodoro|pomodor[oi]|pomodorini)\b/],
   ["zucchine", /\bzucchine?\b/],
   ["spinaci", /\bspinaci\b/],
   ["pane", /\bpane senza glutine\b/],
@@ -114,23 +118,51 @@ const catalogMatchers = [
   ["funghi", /\bfunghi\b/],
   ["zucca", /\bzucca\b/],
   ["olive", /\bolive\b/],
+  ["latte", /\blatte(?: fresco| intero| parzialmente scremato)?\b/],
+  ["burro", /\bburro\b/],
+  ["zucchero", /\bzucchero\b/],
+  ["limone", /\blimoni?\b/],
+  ["arancia", /\barance?\b/],
+  ["banane", /\bbanane?\b/],
+  ["mele", /\bmele?\b/],
+  ["pere", /\b(per[ae])\b/],
+  ["fragole", /\b(fragola|fragole)\b/],
+  ["cavolfiore", /\bcavolfiori?\b/],
+  ["cavolo", /\bcavolo cappuccio\b/],
+  ["gamberi", /\b(gamber[oi]|mazzancolle)\b/],
+  ["mais", /\bmais\b/],
+  ["quinoa", /\bquinoa\b/],
+  ["miele", /\bmiele\b/],
+  ["mascarpone", /\bmascarpone\b/],
+  ["panna", /\bpanna fresca\b/],
+  ["cioccolato-fondente", /\bcioccolato fondente\b/],
+  ["nocciole", /\bnocciole\b/],
+  ["mandorle", /\bmandorle\b/],
 ];
 
 const exclusions = {
+  avena: /biscott|barrett|torta|bevanda/i,
   carote: /omogeneizz|succo|insalata pronta/i,
   fagioli: /omogeneizz|zuppa pronta|insalata pronta/i,
-  manzo: /crocchett|cane|gatto|pet|mousse|fegato/i,
-  maiale: /wurstel|salsiccia|luganega|salame|prosciutto/i,
+  fragole: /mousse|confettur|yogurt|dessert|bevanda|succo|gelato|cremino/i,
+  latte: /detergente|corpo|solare|doccia|capelli/i,
+  mais: /cornetti|snack|patatine|popcorn|gallette|biscott|cracker/i,
+  mandorle: /bevanda|latte|biscott|torta|crema/i,
+  manzo:
+    /crocchett|cane|gatto|pet|mousse|fegato|hamburger|polpett|tartare|bresaola/i,
+  maiale: /wurstel|wudy|salsiccia|luganega|salame|prosciutto/i,
+  merluzzo: /bastoncin|croccol/i,
+  nocciole: /biscott|torta|crema|gelato|barrett/i,
   olive: /ascolana|ripien/i,
   pane: /grattugiat|carasau|pancarr/i,
-  pasta: /sfoglia|frolla|dentifric|filata/i,
+  pasta: /sfoglia|frolla|dentifric|filata|alle cime|piatti pronti/i,
   patate: /fritte|chips|gnocch|pur[eè]/i,
-  piselli: /menta|vellutat|zuppa pronta/i,
-  pollo: /crocchett|cane|gatto|pet|findus/i,
+  piselli: /menta|vellutat|zuppa pronta|arancin/i,
+  pollo: /crocchett|cane|gatto|pet|findus|spiedin|hamburger|polpett/i,
   salmone: /sushi|burger|insalata pronta|affumicat|olio/i,
   spinaci: /ravioli|torta|pizza|gnocch|vellutat/i,
-  tacchino: /arrosto|affettat|prosciutto|hamburger|wurstel|sofficette/i,
-  tonno: /crocchett|cane|gatto|pet/i,
+  tacchino: /arrosto|affettat|prosciutto|hamburger|wurstel|sofficette|tonnato/i,
+  tonno: /crocchett|cane|gatto|pet|olio/i,
   zucchine: /arrosti|omogeneizz|burger|polpett/i,
   zucca: /semi|crema corpo|vellutat/i,
 };
@@ -182,12 +214,30 @@ async function fetchText(url) {
   return (await fetchResponse(url)).text();
 }
 
+async function fetchFormJson(url, data) {
+  const response = await fetch(url, {
+    method: "POST",
+    redirect: "follow",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+      "User-Agent":
+        "FuditPriceBot/1.1 (+https://github.com/francescoeramo/Fudit)",
+    },
+    body: `data=${encodeURIComponent(JSON.stringify(data))}`,
+    signal: AbortSignal.timeout(45_000),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
 const parseEuro = (value) => {
   const match = String(value ?? "").match(/\d{1,3}(?:[.,]\d{1,2})/);
   return match ? Number(match[0].replace(",", ".")) : 0;
 };
 
 function packageFromText(value) {
+  const coopPackage = parseCoopPackage(value);
+  if (coopPackage) return coopPackage;
   const matches = [
     ...String(value ?? "")
       .toUpperCase()
@@ -252,8 +302,10 @@ function validityFromText(value) {
 function offerRow(source, offer) {
   const name = plainText(offer.name).slice(0, 180);
   if (/\b(cane|gatto|pet|miba)\b/i.test(normalize(name))) return null;
-  const catalogId = offer.catalogId ?? catalogIdFor(name);
-  if (catalogId && exclusions[catalogId]?.test(normalize(name))) return null;
+  const searchable = `${name} ${plainText(offer.details ?? "")}`;
+  const catalogId = offer.catalogId ?? catalogIdFor(searchable);
+  if (catalogId && exclusions[catalogId]?.test(normalize(searchable)))
+    return null;
   const pack = offer.pack ?? packageFromText(`${name} ${offer.details ?? ""}`);
   const price = Number(offer.price);
   if (
@@ -264,7 +316,12 @@ function offerRow(source, offer) {
     price > 500
   )
     return null;
-  const expectedUnit = catalogId === "uova" ? "pz" : "g";
+  const expectedUnit =
+    catalogId === "uova"
+      ? "pz"
+      : catalogId === "latte" || catalogId === "panna"
+        ? "ml"
+        : "g";
   if (pack.unit !== expectedUnit) return null;
   const referencePrice =
     pack.unit === "pz" ? price / pack.quantity : (price * 1000) / pack.quantity;
@@ -702,6 +759,71 @@ async function discoverLinkedPdf(source, html) {
   return flyer;
 }
 
+async function discoverCoopLombardiaFlyers(source, html) {
+  const redirects = [
+    ...html.matchAll(/href=["']([^"']+\/redirect\d+\.html[^"']*)["']/gi),
+  ].map((match) => absoluteUrl(match[1], source.url));
+  const uniqueRedirects = [...new Set(redirects)];
+  if (uniqueRedirects.length === 0)
+    throw new Error("Volantini Coop Lombardia non trovati");
+
+  const flyers = await Promise.all(
+    uniqueRedirects.map(async (redirect) => {
+      const viewer = await fetchText(redirect);
+      const id = viewer.match(/var id_volantino\s*=\s*["'](\d+)["']/)?.[1];
+      const pdf = viewer.match(
+        /href=["'](https:\/\/resources\.volantinopiu\.it\/flyer\/[^"']+\.pdf(?:\?[^"']*)?)["']/i,
+      )?.[1];
+      const validity = validityFromText(plainText(viewer));
+      return id && pdf ? { id, pdf: decodeHtml(pdf), ...validity } : null;
+    }),
+  );
+  const validFlyers = flyers.filter(Boolean);
+  if (validFlyers.length === 0)
+    throw new Error("Dati dei volantini Coop Lombardia non trovati");
+  return validFlyers;
+}
+
+async function parseCoopLombardia(source, html) {
+  const flyers = await discoverCoopLombardiaFlyers(source, html);
+  const offers = [];
+  let found = 0;
+  for (const flyer of flyers) {
+    const payload = await fetchFormJson(
+      "https://coop.volantinopiu.com/src/routes.php",
+      {
+        value: "famiglia-%",
+        tipo: "esplodi",
+        id_volantino: flyer.id,
+      },
+    );
+    const cards = parseCoopOfferCards(payload.result);
+    if (debug)
+      console.log(
+        "DEBUG Coop",
+        cards.map(({ name, details }) => ({
+          name,
+          details,
+          catalogId: catalogIdFor(name),
+        })),
+      );
+    found += cards.length;
+    for (const { name, details, price } of cards) {
+      offers.push(
+        offerRow(source, {
+          name,
+          details,
+          price,
+          sourceUrl: flyer.pdf,
+          validFrom: flyer.validFrom,
+          validTo: flyer.validTo,
+        }),
+      );
+    }
+  }
+  return { found, rows: dedupe(offers) };
+}
+
 async function discoverEsselungaPdf(source, listing) {
   const detailHref = listing.match(
     /href="([^"]+\/volantini\/volantino\.(?!digitale)[^"]+\.html)"/i,
@@ -728,6 +850,8 @@ async function scrape(source) {
   if (source.parser === "conad") return parseConad(source, html);
   if (source.parser === "penny") return parsePenny(source, html);
   if (source.parser === "md") return parseMd(source, html);
+  if (source.parser === "coopLombardia")
+    return parseCoopLombardia(source, html);
   const pdfUrl =
     source.parser === "esselungaPdf"
       ? await discoverEsselungaPdf(source, html)

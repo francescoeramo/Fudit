@@ -253,8 +253,9 @@ legend {
   margin: 0;
 }
 .day {
-  border-left: 3px solid var(--coral);
-  padding-left: 12px;
+  border-inline-start: 1px solid
+    color-mix(in srgb, var(--coral) 55%, transparent);
+  padding-inline-start: 12px;
   margin: 14px 0;
 }
 .muted {

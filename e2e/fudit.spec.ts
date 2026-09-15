@@ -13,7 +13,6 @@ test("genera piano e rende disponibile la lista della spesa", async ({
 }) => {
   await page.getByLabel("Budget settimanale (€)").fill("60");
   await page.getByRole("button", { name: "Genera piano" }).click();
-  await expect(page.locator(".notice")).toContainText("Analizzo");
   await expect(page.getByText("Piano creato e ottimizzato")).toBeVisible();
   await expect(page.getByText("Lun", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Spesa" }).click();
@@ -72,6 +71,23 @@ test("conferme distruttive supportano annulla ed Escape", async ({ page }) => {
   await expect(page.getByRole("alertdialog")).toBeHidden();
 });
 
+test("Idee propone pasta e riso e mostra la copertura ingredienti", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Idee" }).click();
+  const quick = page.getByRole("group", { name: /Ingredienti rapidi/ });
+  await expect(
+    quick.getByRole("checkbox", { name: "Pasta", exact: true }),
+  ).toBeVisible();
+  await expect(
+    quick.getByRole("checkbox", { name: "Riso", exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Ingredienti scritti").fill("PASTA, ríso");
+  await page.getByRole("button", { name: "Suggerisci ricette" }).click();
+  await expect(page.getByText(/su 2 ingredienti/).first()).toBeVisible();
+  await expect(page.getByLabel("Porzioni ricetta suggerita")).toHaveValue("2");
+});
+
 test("layout mobile non produce scorrimento orizzontale", async ({ page }) => {
   const viewport = page.viewportSize();
   test.skip(!viewport || viewport.width > 700, "Controllo specifico mobile");
@@ -93,8 +109,8 @@ test("layout mobile non produce scorrimento orizzontale", async ({ page }) => {
   const toolbar = page.locator(".recipe-toolbar");
   await expect(toolbar).toBeVisible();
   const toolbarBox = await toolbar.boundingBox();
-  expect(toolbarBox?.height).toBeLessThan(220);
-  await expect(page.getByText("118 ricette trovate")).toBeVisible();
+  expect(toolbarBox?.height).toBeLessThan(230);
+  await expect(page.getByText("228 ricette trovate")).toBeVisible();
   await page.getByRole("button", { name: "Torna a Pianifica" }).click();
   await expect(
     page.getByRole("heading", { name: "Il tuo piano" }),

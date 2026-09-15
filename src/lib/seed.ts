@@ -25,7 +25,7 @@ const storesFor = (base: number) => ({
 const rawSeedPrices: PriceItem[] = [
   {
     id: "pasta",
-    name: "Pasta integrale",
+    name: "Pasta",
     unit: "g",
     price: 1.35,
     per: 500,
@@ -42,7 +42,7 @@ const rawSeedPrices: PriceItem[] = [
   },
   {
     id: "riso",
-    name: "Riso basmati",
+    name: "Riso",
     unit: "g",
     price: 2.2,
     per: 500,

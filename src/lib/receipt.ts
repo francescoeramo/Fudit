@@ -75,7 +75,11 @@ export const isUncertainReceiptMatch = (matches: ReceiptMatch[]) =>
       (matches[1] && matches[0].confidence - matches[1].confidence < 0.12)),
   );
 
-const priceAtEnd = /(?:€|EUR)?\s*(\d{1,3})\s*[,.]\s*(\d{2})\s*[A-Z*]?\s*$/i;
+const priceAtEnd =
+  /(?:€|EUR)?\s*([\dIl|]{1,3})\s*[,.]\s*([\dOo]{2})\s*[A-Z*]?\s*[,;:]?\s*$/i;
+
+const numericOcrToken = (value: string) =>
+  value.replace(/[Il|]/g, "1").replace(/[Oo]/g, "0");
 
 export const parseReceipt = (text: string): ReceiptRow[] => {
   const lines = text
@@ -99,7 +103,9 @@ export const parseReceipt = (text: string): ReceiptRow[] => {
       continue;
     }
 
-    const price = Number(`${match[1]}.${match[2]}`);
+    const price = Number(
+      `${numericOcrToken(match[1])}.${numericOcrToken(match[2])}`,
+    );
     const inlineName = cleanName(line.slice(0, match.index));
     const name =
       inlineName.length >= 3 && /[a-zàèéìòù]/i.test(inlineName)
@@ -120,6 +126,62 @@ export const parseReceipt = (text: string): ReceiptRow[] => {
   return rows.slice(0, 100);
 };
 
+export const enhanceReceiptPixels = (
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number,
+) => {
+  const gray = new Uint8ClampedArray(width * height);
+  const histogram = new Uint32Array(256);
+  for (let pixel = 0; pixel < gray.length; pixel += 1) {
+    const index = pixel * 4;
+    const value = Math.round(
+      pixels[index] * 0.299 +
+        pixels[index + 1] * 0.587 +
+        pixels[index + 2] * 0.114,
+    );
+    gray[pixel] = value;
+    histogram[value] += 1;
+  }
+  const percentile = (target: number) => {
+    let count = 0;
+    for (let value = 0; value < histogram.length; value += 1) {
+      count += histogram[value];
+      if (count >= target) return value;
+    }
+    return 255;
+  };
+  const low = percentile(Math.max(1, Math.round(gray.length * 0.01)));
+  const high = percentile(Math.max(1, Math.round(gray.length * 0.99)));
+  const range = Math.max(1, high - low);
+  const stretched = gray.map((value) =>
+    Math.max(0, Math.min(255, Math.round(((value - low) * 255) / range))),
+  );
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const pixel = y * width + x;
+      const center = stretched[pixel];
+      const sharpened =
+        x > 0 && x < width - 1 && y > 0 && y < height - 1
+          ? center * 5 -
+            stretched[pixel - 1] -
+            stretched[pixel + 1] -
+            stretched[pixel - width] -
+            stretched[pixel + width]
+          : center;
+      const value = Math.max(
+        0,
+        Math.min(255, Math.round(center * 0.75 + sharpened * 0.25)),
+      );
+      const index = pixel * 4;
+      pixels[index] = pixels[index + 1] = pixels[index + 2] = value;
+      pixels[index + 3] = 255;
+    }
+  }
+  return pixels;
+};
+
 export const prepareReceiptImage = async (file: File): Promise<Blob | File> => {
   if (
     typeof createImageBitmap !== "function" ||
@@ -127,7 +189,7 @@ export const prepareReceiptImage = async (file: File): Promise<Blob | File> => {
   )
     return file;
   const image = await createImageBitmap(file);
-  const targetWidth = Math.min(2200, Math.max(1400, image.width));
+  const targetWidth = Math.min(2400, Math.max(1800, image.width));
   const scale = targetWidth / image.width;
   const canvas = document.createElement("canvas");
   canvas.width = targetWidth;
@@ -142,17 +204,7 @@ export const prepareReceiptImage = async (file: File): Promise<Blob | File> => {
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
   image.close();
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-  for (let index = 0; index < pixels.data.length; index += 4) {
-    const gray =
-      pixels.data[index] * 0.299 +
-      pixels.data[index + 1] * 0.587 +
-      pixels.data[index + 2] * 0.114;
-    const contrasted = Math.max(0, Math.min(255, (gray - 128) * 1.55 + 128));
-    pixels.data[index] =
-      pixels.data[index + 1] =
-      pixels.data[index + 2] =
-        contrasted;
-  }
+  enhanceReceiptPixels(pixels.data, canvas.width, canvas.height);
   context.putImageData(pixels, 0, 0);
   return await new Promise((resolve) =>
     canvas.toBlob((blob) => resolve(blob ?? file), "image/png", 0.95),

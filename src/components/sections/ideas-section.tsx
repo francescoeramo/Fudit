@@ -4,17 +4,30 @@ import { FormEvent, useMemo, useState } from "react";
 import { Dices, Search } from "lucide-react";
 import { scaleIngredients } from "@/lib/calculations";
 import { recipeCourse } from "@/lib/food";
-import { getQuickIngredients, suggestRecipes } from "@/lib/ideas";
-import { PriceItem, Recipe, RecipeCourse } from "@/lib/types";
+import {
+  countMatchedIngredients,
+  getQuickIngredients,
+  suggestRecipes,
+} from "@/lib/ideas";
+import { Preferences, PriceItem, Recipe, RecipeCourse } from "@/lib/types";
 
 const courses: RecipeCourse[] = ["Primo", "Secondo", "Contorno", "Dolce"];
+const mandatoryStyles = new Set([
+  "vegetariani",
+  "vegani",
+  "senza glutine",
+  "senza lattosio",
+  "low FODMAP",
+]);
 
 export default function IdeasSection({
   recipes,
   catalog,
+  prefs,
 }: {
   recipes: Recipe[];
   catalog: PriceItem[];
+  prefs: Preferences;
 }) {
   const [checked, setChecked] = useState<string[]>([]);
   const [written, setWritten] = useState("");
@@ -38,8 +51,16 @@ export default function IdeasSection({
     [checked, written],
   );
   const suggestions = useMemo(
-    () => suggestRecipes(recipes, requested, selectedCourses),
-    [recipes, requested, selectedCourses],
+    () =>
+      suggestRecipes(
+        recipes,
+        requested,
+        selectedCourses,
+        prefs.styles.filter((style) => mandatoryStyles.has(style)),
+        prefs.allergies,
+        catalog,
+      ),
+    [recipes, requested, selectedCourses, prefs, catalog],
   );
   const selected = recipes.find((recipe) => recipe.id === selectedId);
 
@@ -63,8 +84,9 @@ export default function IdeasSection({
       <section className="card ideas-builder">
         <h2>Cosa hai già in casa?</h2>
         <p className="muted">
-          Spunta gli ingredienti oppure scrivili separati da virgole. Maiuscole
-          e minuscole non cambiano il risultato.
+          Spunta gli ingredienti oppure scrivili separati da virgole. Basta che
+          una ricetta ne contenga uno; quelle che ne coprono di più arrivano
+          prima. Maiuscole e accenti non cambiano il risultato.
         </p>
         <form onSubmit={search}>
           <label htmlFor="ideas-ingredients">Ingredienti scritti</label>
@@ -144,8 +166,8 @@ export default function IdeasSection({
           </p>
           {!suggestions.length ? (
             <div className="card empty">
-              Nessuna ricetta contiene tutti gli ingredienti indicati. Prova a
-              rimuoverne uno o a cambiare categoria.
+              Nessuna ricetta contiene gli ingredienti indicati e rispetta
+              portata, stili e allergie correnti. Prova a cambiare i filtri.
             </div>
           ) : (
             <div className="ideas-layout">
@@ -159,6 +181,21 @@ export default function IdeasSection({
                   >
                     <span>{recipe.title}</span>
                     <small>
+                      {requested.length
+                        ? `${countMatchedIngredients(recipe, requested)} su ${
+                            new Set(
+                              requested
+                                .map((item) =>
+                                  item
+                                    .normalize("NFD")
+                                    .replace(/[\u0300-\u036f]/g, "")
+                                    .toLocaleLowerCase("it")
+                                    .trim(),
+                                )
+                                .filter(Boolean),
+                            ).size
+                          } ingredienti · `
+                        : ""}
                       {recipeCourse(recipe)} · {recipe.time} min
                     </small>
                   </button>

@@ -1,5 +1,6 @@
 import { recipeCourse } from "./food";
-import { PriceItem, Recipe, RecipeCourse } from "./types";
+import { recipeMatchesAllergy } from "./allergens";
+import { FoodStyle, PriceItem, Recipe, RecipeCourse } from "./types";
 
 export const getQuickIngredients = (
   catalog: PriceItem[],
@@ -46,22 +47,47 @@ const ingredientMatches = (recipe: Recipe, requested: string) => {
   });
 };
 
+export const countMatchedIngredients = (
+  recipe: Recipe,
+  ingredients: string[],
+) =>
+  new Set(ingredients.map(normalizeIngredientText).filter(Boolean)).size === 0
+    ? 0
+    : [
+        ...new Set(ingredients.map(normalizeIngredientText).filter(Boolean)),
+      ].filter((ingredient) => ingredientMatches(recipe, ingredient)).length;
+
 export const suggestRecipes = (
   recipes: Recipe[],
   ingredients: string[],
   courses: RecipeCourse[],
+  styles: FoodStyle[] = [],
+  allergies: string[] = [],
+  catalog: PriceItem[] = [],
 ) => {
   const requested = [
     ...new Set(ingredients.map(normalizeIngredientText).filter(Boolean)),
   ];
-  return recipes
+  const uniqueRecipes = [
+    ...new Map(recipes.map((recipe) => [recipe.id, recipe])).values(),
+  ];
+  return uniqueRecipes
     .filter(
       (recipe) =>
         (!courses.length || courses.includes(recipeCourse(recipe))) &&
-        requested.every((ingredient) => ingredientMatches(recipe, ingredient)),
+        (!requested.length ||
+          requested.some((ingredient) =>
+            ingredientMatches(recipe, ingredient),
+          )) &&
+        styles.every((style) => recipe.tags.includes(style)) &&
+        !allergies.some((allergy) =>
+          recipeMatchesAllergy(recipe, allergy, catalog),
+        ),
     )
     .sort(
       (left, right) =>
+        countMatchedIngredients(right, requested) -
+          countMatchedIngredients(left, requested) ||
         left.ingredients.length - right.ingredients.length ||
         left.time - right.time ||
         left.title.localeCompare(right.title, "it"),

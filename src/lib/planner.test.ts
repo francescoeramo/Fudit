@@ -97,7 +97,7 @@ describe("Fudit planning", () => {
     expect(
       isCompatible(
         recipes[0],
-        { ...prefs, allergies: ["integrale"] },
+        { ...prefs, allergies: ["glutine"] },
         seedPrices,
       ),
     ).toBe(false);

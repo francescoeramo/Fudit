@@ -74,12 +74,22 @@ export default function ReceiptScanner({
         },
       });
       await worker.setParameters({
-        tessedit_pageseg_mode: PSM.SPARSE_TEXT,
+        tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
         preserve_interword_spaces: "1",
       });
-      const result = await worker.recognize(source);
+      let result = await worker.recognize(source);
+      let parsedRows = parseReceipt(result.data.text);
+      if (!parsedRows.length) {
+        setProgress(0);
+        await worker.setParameters({
+          tessedit_pageseg_mode: PSM.AUTO,
+          preserve_interword_spaces: "1",
+        });
+        result = await worker.recognize(file);
+        parsedRows = parseReceipt(result.data.text);
+      }
       const importedAt = new Date().toISOString();
-      const parsed = parseReceipt(result.data.text).map((row) => {
+      const parsed = parsedRows.map((row) => {
         const matches = receiptCatalogMatches(row.name, catalog);
         return {
           ...row,

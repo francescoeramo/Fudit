@@ -437,13 +437,13 @@ export default function Home() {
                     ? `${allRecipes.length} ricette`
                     : tab === "ideas"
                       ? "Ricette con ciò che hai"
-                    : tab === "diet"
-                      ? "Importa dieta PDF"
-                      : tab === "guide"
-                        ? "Come usare Fudit"
-                      : tab === "prices"
-                        ? "Catalogo prezzi"
-                        : "Preferenze e dati"}
+                      : tab === "diet"
+                        ? "Importa dieta PDF"
+                        : tab === "guide"
+                          ? "Come usare Fudit"
+                          : tab === "prices"
+                            ? "Catalogo prezzi"
+                            : "Preferenze e dati"}
             </span>
           </div>
         </div>
@@ -526,7 +526,7 @@ export default function Home() {
         />
       )}
       {tab === "ideas" && (
-        <IdeasSection recipes={allRecipes} catalog={catalog} />
+        <IdeasSection recipes={allRecipes} catalog={catalog} prefs={prefs} />
       )}
       {tab === "diet" && (
         <DietImporter
