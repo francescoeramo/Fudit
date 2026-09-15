@@ -28,14 +28,14 @@ const prefs: Preferences = {
   allergies: [],
 };
 describe("Fudit planning", () => {
-  it("mantiene 228 ricette valide: 60 dolci e 50 nuove salate", () => {
-    expect(recipes).toHaveLength(228);
+  it("mantiene 236 ricette valide: 62 dolci e 58 nuove salate", () => {
+    expect(recipes).toHaveLength(236);
     expect(
       recipes.filter((recipe) => recipeCourse(recipe) === "Dolce"),
-    ).toHaveLength(60);
+    ).toHaveLength(62);
     expect(
       recipes.filter((recipe) => recipe.id.startsWith("salato-")),
-    ).toHaveLength(50);
+    ).toHaveLength(58);
     expect(
       recipes.filter((recipe) => recipe.tags.includes("asiatici")),
     ).toHaveLength(20);
@@ -44,6 +44,18 @@ describe("Fudit planning", () => {
     );
     expect(new Set(recipes.map((recipe) => recipe.id)).size).toBe(
       recipes.length,
+    );
+    expect(recipes.map((recipe) => recipe.id)).toEqual(
+      expect.arrayContaining([
+        "salato-pasta-avocado-pomodori",
+        "salato-orata-melone-patate",
+        "salato-totani-olive-pomodori",
+        "salato-vitello-uva-funghi",
+        "salato-insalata-bresaola-avocado",
+        "salato-riso-prosciutto-piselli",
+        "salato-kefir-susine-anacardi",
+        "salato-crostini-confettura-ricotta",
+      ]),
     );
     const catalogIds = new Set(seedPrices.map((item) => item.id));
     recipes.forEach((recipe) => {

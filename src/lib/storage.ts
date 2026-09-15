@@ -96,6 +96,30 @@ const migratePrice = (item: PriceItem): PriceItem => ({
     : {},
 });
 
+const canonicalIngredientName = (id: string, name: string) => {
+  if (
+    id === "pasta" ||
+    name.trim().toLocaleLowerCase("it") === "pasta integrale"
+  )
+    return "Pasta";
+  if (id === "riso" || name.trim().toLocaleLowerCase("it") === "riso basmati")
+    return "Riso";
+  return name;
+};
+
+const migrateRecipe = (recipe: Recipe): Recipe => ({
+  ...recipe,
+  ingredients: recipe.ingredients.map((ingredient) => ({
+    ...ingredient,
+    name: canonicalIngredientName(ingredient.id, ingredient.name),
+  })),
+});
+
+const migrateStoredRecipe = (recipe: unknown) =>
+  isRecord(recipe) && Array.isArray(recipe.ingredients)
+    ? migrateRecipe(recipe as unknown as Recipe)
+    : recipe;
+
 const migratePlan = (plan: MealPlan, prefs: Preferences): MealPlan => ({
   ...plan,
   meals: plan.meals
@@ -199,7 +223,7 @@ const normalizeData = (
     dark: typeof candidate?.dark === "boolean" ? candidate.dark : defaults.dark,
     catalog,
     dietRecipes: Array.isArray(candidate?.dietRecipes)
-      ? candidate.dietRecipes
+      ? (candidate.dietRecipes.map(migrateStoredRecipe) as Recipe[])
       : defaults.dietRecipes,
     plans,
     activePlanId:

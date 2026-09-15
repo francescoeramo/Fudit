@@ -76,4 +76,52 @@ describe("storage Fudit versionato", () => {
       ),
     ).toThrow(/versione più recente/);
   });
+
+  it("normalizza Pasta e Riso nelle ricette alimentari salvate", () => {
+    const data = defaults();
+    data.dietRecipes = [
+      {
+        id: "piano-importato",
+        title: "Pranzo",
+        time: 20,
+        difficulty: "Facile",
+        ingredients: [
+          {
+            id: "pasta-integrale-importata",
+            name: "Pasta integrale",
+            quantity: 80,
+            unit: "g",
+            category: "Dispensa",
+          },
+          {
+            id: "riso-basmati-importato",
+            name: "Riso basmati",
+            quantity: 80,
+            unit: "g",
+            category: "Dispensa",
+          },
+        ],
+        steps: [],
+        nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+        tags: ["economici"],
+        allergens: [],
+        baseServings: 1,
+        origin: "diet-pdf",
+      },
+    ];
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        app: "Fudit",
+        version: STORAGE_VERSION,
+        savedAt: "",
+        data,
+      }),
+    );
+
+    const [pasta, riso] =
+      loadAppStorage(defaults()).data.dietRecipes[0].ingredients;
+    expect(pasta.name).toBe("Pasta");
+    expect(riso.name).toBe("Riso");
+  });
 });

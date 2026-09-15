@@ -51,7 +51,23 @@ describe("suggerimenti Idee", () => {
         .sort((left, right) => left.localeCompare(right, "it")),
     );
     expect(quickIngredients.map((item) => item.id)).toEqual(
-      expect.arrayContaining(["pasta", "riso"]),
+      expect.arrayContaining([
+        "pasta",
+        "riso",
+        "avocado",
+        "uva",
+        "susine",
+        "melone",
+        "vitello",
+        "orata",
+        "totano",
+        "bresaola",
+        "prosciutto-cotto",
+        "kefir",
+        "confettura",
+        "anacardi",
+        "olio-oliva",
+      ]),
     );
     expect(
       quickIngredients
