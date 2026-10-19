@@ -1,5 +1,6 @@
 import { recipeCourse } from "./food";
 import { recipeMatchesAllergy } from "./allergens";
+import { cleanIngredientName } from "./ingredient-names";
 import { FoodStyle, PriceItem, Recipe, RecipeCourse } from "./types";
 
 export const getQuickIngredients = (
@@ -14,6 +15,10 @@ export const getQuickIngredients = (
   const seenIngredientIds = new Set<string>();
 
   return catalog
+    .flatMap((item) => {
+      const name = cleanIngredientName(item.name);
+      return name ? [{ ...item, name }] : [];
+    })
     .filter((item) => {
       if (!usedIngredientIds.has(item.id) || seenIngredientIds.has(item.id)) {
         return false;

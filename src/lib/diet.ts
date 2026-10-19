@@ -5,6 +5,7 @@ import {
   roundMoney,
 } from "./calculations";
 import { categorizeFood } from "./food";
+import { cleanIngredientName } from "./ingredient-names";
 import {
   Ingredient,
   MealPlan,
@@ -96,9 +97,12 @@ const parseIngredientSegment = (
   segment: string,
   index: number,
 ): DietIngredientDraft | null => {
-  const cleaned = segment.replace(/[()[\]]/g, " ").trim();
+  const cleaned = segment
+    .replace(/[()[\]]/g, " ")
+    .replace(/^[-:–—\s]+/, "")
+    .trim();
   const after = cleaned.match(
-    /(\d+(?:[.,]\d+)?)\s*(kg|g|ml|cl|l|pz|pezzo|pezzi)\b\s*(?:di\s+)?(.+)/i,
+    /^(\d+(?:[.,]\d+)?)\s*(kg|g|ml|cl|l|pz|pezzo|pezzi)\b\s*(?:di\s+)?(.+)/i,
   );
   const before = cleaned.match(
     /(.+?)\s+(\d+(?:[.,]\d+)?)\s*(kg|g|ml|cl|l|pz|pezzo|pezzi)\b/i,
@@ -107,9 +111,9 @@ const parseIngredientSegment = (
   if (!match) return null;
   const quantityText = after ? match[1] : match[2];
   const unitText = after ? match[2] : match[3];
-  const name = (after ? match[3] : match[1])
-    .replace(/^[-:–—\s]+|[-:–—\s]+$/g, "")
-    .trim();
+  const name = cleanIngredientName(
+    (after ? match[3] : match[1]).replace(/^[-:–—\s]+|[-:–—\s]+$/g, "").trim(),
+  );
   const quantity = normalizedQuantity(quantityText, unitText);
   if (!name || !Number.isFinite(quantity) || quantity <= 0) return null;
   return {

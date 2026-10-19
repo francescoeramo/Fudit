@@ -30,6 +30,26 @@ const recipe = (
 });
 
 describe("suggerimenti Idee", () => {
+  it("esclude frammenti importati e ripulisce la punteggiatura", () => {
+    const names = [
+      ".",
+      "e verdura",
+      "e un",
+      "a crudo",
+      "condita con pomodorini",
+      "frutta secca.",
+      "Riso",
+    ];
+    const custom = recipe("importata", names);
+    const catalog = custom.ingredients.map((ingredient) => ({
+      ...seedPrices[0],
+      id: ingredient.id,
+      name: ingredient.name,
+    }));
+    expect(
+      getQuickIngredients(catalog, [custom]).map((item) => item.name),
+    ).toEqual(["frutta secca", "Riso"]);
+  });
   it("propone tutti gli ingredienti del catalogo effettivamente usati", () => {
     const usedIngredientIds = new Set(
       recipes.flatMap((recipe) =>

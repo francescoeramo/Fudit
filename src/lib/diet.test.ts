@@ -3,6 +3,16 @@ import { buildDietPlan, matchCatalogIngredient, parseDietText } from "./diet";
 import { seedPrices } from "./seed";
 
 describe("importazione dieta", () => {
+  it("non scambia le note dopo la quantità per ingredienti", () => {
+    const meals = parseDietText(
+      "Lunedì pranzo: pasta 80 g e verdura; olio 10 g a crudo; 5 g .; 10 g e un; 100 g frutta secca.",
+    );
+    expect(meals[0].ingredients.map((item) => item.name)).toEqual([
+      "pasta",
+      "olio",
+      "frutta secca",
+    ]);
+  });
   it("non abbina frammenti interni di parole a ingredienti diversi", () => {
     expect(
       matchCatalogIngredient("alimento speciale", seedPrices),
