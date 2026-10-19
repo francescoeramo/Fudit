@@ -1,4 +1,5 @@
 import { PriceItem, Recipe } from "./types";
+import { createAutumnRecipes } from "./autumn-recipes";
 import { dessertPrices, dessertRecipes } from "./desserts";
 import { buildSavorySteps } from "./procedures";
 import { createSavoryRecipes, savoryPrices } from "./savory-expansion";
@@ -2540,4 +2541,5 @@ export const recipes: Recipe[] = [
   })),
   ...createSavoryRecipes(seedPrices),
   ...dessertRecipes,
+  ...createAutumnRecipes(seedPrices),
 ];

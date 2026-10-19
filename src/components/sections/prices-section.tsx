@@ -108,7 +108,7 @@ export default function PricesSection({
               : store === "Despar"
                 ? "I prezzi Despar provengono dal catalogo ufficiale Despar a Casa di Corato (BA) e vengono aggiornati ogni martedì. Prezzi manuali e da scontrino hanno la priorità."
                 : flyerStatus?.ok
-                  ? `${flyerStatus.productsMapped} prezzi collegati su ${flyerStatus.productsFound} offerte del volantino · ${flyerStatus.sourceArea}. Aggiornamento settimanale gratuito; manuali e scontrini hanno la priorità.`
+                  ? `${flyerStatus.productsMapped} prezzi collegati su ${flyerStatus.productsFound} prodotti pubblicati · ${flyerStatus.sourceArea}. Controllo del ${new Intl.DateTimeFormat("it-IT").format(new Date(flyerDataset!.generatedAt))}. Prezzi manuali e scontrini hanno la priorità.`
                   : "La fonte del volantino viene controllata ogni settimana. Nessun prezzo confermato disponibile per questa zona o questo periodo."}
         </p>
       )}

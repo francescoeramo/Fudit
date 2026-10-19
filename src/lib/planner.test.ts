@@ -28,8 +28,8 @@ const prefs: Preferences = {
   allergies: [],
 };
 describe("Fudit planning", () => {
-  it("mantiene 236 ricette valide: 62 dolci e 58 nuove salate", () => {
-    expect(recipes).toHaveLength(236);
+  it("mantiene 242 ricette valide: 62 dolci e 58 ricette salato più 6 autunnali", () => {
+    expect(recipes).toHaveLength(242);
     expect(
       recipes.filter((recipe) => recipeCourse(recipe) === "Dolce"),
     ).toHaveLength(62);
@@ -169,6 +169,26 @@ describe("Fudit planning", () => {
         );
       expect(new Set(dailyStaples).size).toBe(2);
     }
+  });
+  it("le preferenze AI non aggirano allergie, stili o budget", () => {
+    const preferences: Preferences = {
+      ...prefs,
+      budget: 200,
+      styles: ["vegani"],
+      allergies: ["latte", "glutine"],
+    };
+    const plan = createPlan(recipes, seedPrices, preferences, undefined, [
+      "inventata",
+      "pollo-riso",
+      "pasta-ceci",
+    ]);
+    expect(plan.meals.length).toBeGreaterThan(0);
+    expect(plan.total).toBeLessThanOrEqual(preferences.budget);
+    plan.meals.forEach((meal) => {
+      const recipe = recipes.find((r) => r.id === meal.recipeId)!;
+      expect(isCompatible(recipe, preferences, seedPrices)).toBe(true);
+      expect(recipe.tags).toContain("vegani");
+    });
   });
   it("riconosce anche sinonimi e allergeni impliciti nel nome", () => {
     const walnutRecipe: Recipe = {

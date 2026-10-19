@@ -28,7 +28,7 @@ jobs:
       - name: Read public flyers
         run: node scripts/update-flyer-prices.mjs
       - name: Verify generated data and app
-        run: npm test -- src/lib/flyer-prices.test.ts && npm run build
+        run: npm test -- src/lib/flyer-prices.test.ts scripts && npm run build
       - name: Commit updated prices
         run: |
           if git diff --quiet -- public/flyer-prices.json; then

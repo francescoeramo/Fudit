@@ -2,6 +2,16 @@
 
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import {
+  catalogMatchers,
+  exclusions,
+  normalize,
+  catalogIdFor,
+} from "./lib/catalog-matching.mjs";
+import {
+  parseCarrefourCards,
+  parseAldiCards,
+} from "./lib/public-catalog-parser.mjs";
+import {
   parseCoopOfferCards,
   parseCoopPackage,
 } from "./lib/coop-lombardia-parser.mjs";
@@ -23,6 +33,18 @@ const outputPath = resolve(
 );
 
 const sources = [
+  {
+    store: "Carrefour",
+    area: "Carrefour Italia · catalogo online pubblico, negozio non selezionato",
+    url: "https://www.carrefour.it/spesa-online/pasta-riso-e-farina/",
+    parser: "carrefour",
+  },
+  {
+    store: "ALDI",
+    area: "ALDI Italia · offerte pubbliche, verificare disponibilità in negozio",
+    url: "https://www.aldi.it/offerte-settimanali/offerte-di-questa-settimana",
+    parser: "aldi",
+  },
   {
     store: "Esselunga",
     area: "Esselunga · Firenze, negozio predefinito del sito",
@@ -78,124 +100,6 @@ const sources = [
     parser: "md",
   },
 ];
-
-const catalogMatchers = [
-  [
-    "pasta",
-    /\b(pasta|spaghetti|penne|fusilli|rigatoni|orecchiette|linguine|lasagne)\b/,
-  ],
-  ["riso", /\briso\b/],
-  ["ceci", /\bceci\b/],
-  ["lenticchie", /\blenticchie\b/],
-  ["pollo", /\bpollo\b/],
-  ["salmone", /\bsalmone\b/],
-  ["uova", /\buova?\b/],
-  ["tofu", /\btofu\b/],
-  ["pomodori", /\b(passata di pomodoro|pomodor[oi]|pomodorini)\b/],
-  ["zucchine", /\bzucchine?\b/],
-  ["spinaci", /\bspinaci\b/],
-  ["pane", /\bpane senza glutine\b/],
-  ["yogurt", /\byogurt greco\b/],
-  ["avena", /\b(fiocchi d avena|avena)\b/],
-  ["avocado", /\bavocado\b/],
-  ["bresaola", /\bbresaola\b/],
-  ["tonno", /\btonno\b/],
-  ["fagioli", /\bfagioli\b/],
-  ["broccoli", /\bbroccoli?\b/],
-  ["patate", /\bpatate\b/],
-  ["tacchino", /\btacchino\b/],
-  ["mozzarella", /\bmozzarell[ae]\b/],
-  ["melanzane", /\bmelanzane?\b/],
-  ["peperoni", /\bpeperoni?\b/],
-  ["cipolle", /\bcipolle?\b/],
-  ["carote", /\bcarote?\b/],
-  ["piselli", /\bpiselli\b/],
-  ["manzo", /\b(macinato di manzo|carne bovina|bovino|manzo)\b/],
-  ["maiale", /\b(lonza di maiale|carne suina|suino|maiale)\b/],
-  ["merluzzo", /\bmerluzzo\b/],
-  ["ricotta", /\bricotta\b/],
-  ["parmigiano", /\bparmigiano reggiano\b/],
-  ["polenta", /\bpolenta\b/],
-  ["farina", /\bfarina(?: di grano)?\b/],
-  ["funghi", /\bfunghi\b/],
-  ["zucca", /\bzucca\b/],
-  ["olive", /\bolive\b/],
-  ["latte", /\blatte(?: fresco| intero| parzialmente scremato)?\b/],
-  ["burro", /\bburro\b/],
-  ["zucchero", /\bzucchero\b/],
-  ["limone", /\blimoni?\b/],
-  ["arancia", /\barance?\b/],
-  ["banane", /\bbanane?\b/],
-  ["mele", /\bmele?\b/],
-  ["pere", /\b(per[ae])\b/],
-  ["fragole", /\b(fragola|fragole)\b/],
-  ["cavolfiore", /\bcavolfiori?\b/],
-  ["cavolo", /\bcavolo cappuccio\b/],
-  ["confettura", /\bconfettura(?: extra)?\b/],
-  ["gamberi", /\b(gamber[oi]|mazzancolle)\b/],
-  ["kefir", /\bk[ée]fir\b/],
-  ["mais", /\bmais\b/],
-  ["quinoa", /\bquinoa\b/],
-  ["miele", /\bmiele\b/],
-  ["mascarpone", /\bmascarpone\b/],
-  ["panna", /\bpanna fresca\b/],
-  ["cioccolato-fondente", /\bcioccolato fondente\b/],
-  ["nocciole", /\bnocciole\b/],
-  ["mandorle", /\bmandorle\b/],
-  ["melone", /\bmelone\b/],
-  ["olio-oliva", /\bolio di oliva\b/],
-  ["orata", /\borata\b/],
-  ["prosciutto-cotto", /\bprosciutto cotto\b/],
-  ["susine", /\bsusine?\b/],
-  ["totano", /\btotani?\b/],
-  ["uva", /\buva\b/],
-  ["vitello", /\bvitello\b/],
-];
-
-const exclusions = {
-  avocado: /salsa|crema corpo/i,
-  bresaola: /pizza|panino|insalata pronta/i,
-  avena: /biscott|barrett|torta|bevanda/i,
-  carote: /omogeneizz|succo|insalata pronta/i,
-  confettura: /biscott|crostata|yogurt|torta/i,
-  fagioli: /omogeneizz|zuppa pronta|insalata pronta/i,
-  fragole: /mousse|confettur|yogurt|dessert|bevanda|succo|gelato|cremino/i,
-  latte: /detergente|corpo|solare|doccia|capelli/i,
-  mais: /cornetti|snack|patatine|popcorn|gallette|biscott|cracker/i,
-  mandorle: /bevanda|latte|biscott|torta|crema/i,
-  manzo:
-    /crocchett|cane|gatto|pet|mousse|fegato|hamburger|polpett|tartare|bresaola/i,
-  maiale: /wurstel|wudy|salsiccia|luganega|salame|prosciutto/i,
-  merluzzo: /bastoncin|croccol/i,
-  nocciole: /biscott|torta|crema|gelato|barrett/i,
-  olive: /ascolana|ripien/i,
-  "olio-oliva":
-    /sapone|corpo|capelli|pane|focaccia|tarall|tonno|sgombro|filetti/i,
-  orata: /pronta|gratinata|burger/i,
-  pane: /grattugiat|carasau|pancarr/i,
-  pasta: /sfoglia|frolla|dentifric|filata|alle cime|piatti pronti/i,
-  patate: /fritte|chips|gnocch|pur[eè]/i,
-  piselli: /menta|vellutat|zuppa pronta|arancin/i,
-  pollo: /crocchett|cane|gatto|pet|findus|spiedin|hamburger|polpett/i,
-  salmone: /sushi|burger|insalata pronta|affumicat|olio/i,
-  spinaci: /ravioli|torta|pizza|gnocch|vellutat/i,
-  tacchino: /arrosto|affettat|prosciutto|hamburger|wurstel|sofficette|tonnato/i,
-  "prosciutto-cotto": /pizza|panino|insalata pronta|cubetti|wurstel/i,
-  totano: /insalata pronta|ripien|anelli pronti/i,
-  tonno: /crocchett|cane|gatto|pet|olio/i,
-  uva: /succo|bevanda|caramell|confettura/i,
-  vitello: /hamburger|polpett|tartare|ripien|affettat|gastronomia/i,
-  zucchine: /arrosti|omogeneizz|burger|polpett/i,
-  zucca: /semi|crema corpo|vellutat/i,
-};
-
-const normalize = (value) =>
-  String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
 
 const decodeHtml = (value) =>
   String(value ?? "")
@@ -283,16 +187,6 @@ function packageFromText(value) {
   return { quantity: amount * multiplier, unit: "g" };
 }
 
-function catalogIdFor(value) {
-  const searchable = normalize(value);
-  for (const [id, matcher] of catalogMatchers) {
-    if (!matcher.test(searchable)) continue;
-    if (exclusions[id]?.test(searchable)) continue;
-    return id;
-  }
-  return null;
-}
-
 const isoDay = (value) => {
   if (value === null || value === undefined || value === "" || value === 0)
     return null;
@@ -323,9 +217,10 @@ function validityFromText(value) {
 
 function offerRow(source, offer) {
   const name = plainText(offer.name).slice(0, 180);
-  if (/\b(cane|gatto|pet|miba)\b/i.test(normalize(name))) return null;
+  if (/\b(cani|gatti|cane|gatto|pet|miba)\b/i.test(normalize(name)))
+    return null;
   const searchable = `${name} ${plainText(offer.details ?? "")}`;
-  const catalogId = offer.catalogId ?? catalogIdFor(searchable);
+  const catalogId = offer.catalogId ?? catalogIdFor(name);
   if (catalogId && exclusions[catalogId]?.test(normalize(searchable)))
     return null;
   const pack = offer.pack ?? packageFromText(`${name} ${offer.details ?? ""}`);
@@ -341,7 +236,9 @@ function offerRow(source, offer) {
   const expectedUnit =
     catalogId === "uova"
       ? "pz"
-      : catalogId === "latte" || catalogId === "panna"
+      : ["latte", "panna", "olio-oliva", "latte-cocco", "salsa-soia"].includes(
+            catalogId,
+          )
         ? "ml"
         : "g";
   if (pack.unit !== expectedUnit) return null;
@@ -355,6 +252,9 @@ function offerRow(source, offer) {
     return null;
   const validFrom = offer.validFrom ?? null;
   const validTo = offer.validTo ?? null;
+  const today = capturedAt.slice(0, 10);
+  if ((validFrom && validFrom > today) || (validTo && validTo < today))
+    return null;
   const external = normalize(
     `${source.store}-${name}-${pack.quantity}-${pack.unit}`,
   )
@@ -373,7 +273,7 @@ function offerRow(source, offer) {
     valid_to: validTo,
     captured_at: capturedAt,
     source_url: offer.sourceUrl ?? source.url,
-    source_label: `Volantino pubblico ${source.store}`,
+    source_label: `${source.parser === "carrefour" ? "Catalogo online pubblico" : "Volantino pubblico"} ${source.store}`,
     source_area: source.area,
     external_id: external,
   };
@@ -551,7 +451,8 @@ function parsePenny(source, html) {
     const validity = validityFromText(serialized);
     return offerRow(source, {
       name,
-      details: `${item.packageLabel ?? ""} ${item.weight ?? ""} ${item.volumeLabelShort ?? ""}`,
+      // Gross transport weight is not the food's declared net quantity.
+      details: `${item.packageLabel ?? ""} ${item.descriptionShort ?? ""} ${item.descriptionLong ?? ""}`,
       price: rawPrice > 50 ? rawPrice / 100 : rawPrice,
       validFrom:
         isoDay(item.price?.validityStart ?? item.validFrom ?? item.startDate) ??
@@ -705,6 +606,8 @@ function parsePdfOffers(source, text, sourceUrl) {
       `${matcher.flags.replace("g", "")}gi`,
     );
     for (const match of text.matchAll(global)) {
+      // Lower-case ingredients inside a description are not product headings.
+      if (match[0] !== match[0].toUpperCase()) continue;
       const originalWindow = text.slice(match.index, match.index + 220);
       const exclusionWindow = text.slice(
         Math.max(0, match.index - 90),
@@ -718,10 +621,20 @@ function parsePdfOffers(source, text, sourceUrl) {
       const between = originalWindow.slice(0, packageMatch.index ?? 0);
       if (/€|\bal\s+kg\b/i.test(between)) continue;
       const pack = packageFromText(packageMatch[0]);
-      const afterPackage = originalWindow.slice(
+      const packageEnd = (packageMatch.index ?? 0) + packageMatch[0].length;
+      const productName = originalWindow.slice(0, packageEnd);
+      const rawAfterPackage = originalWindow.slice(
         (packageMatch.index ?? 0) + packageMatch[0].length,
         (packageMatch.index ?? 0) + packageMatch[0].length + 110,
       );
+      // Never borrow a neighbouring product's price.
+      const nextHeading = rawAfterPackage.search(
+        /\b[A-ZÀ-Ù]{3,}(?:\s+[A-ZÀ-Ù]{2,})+/,
+      );
+      const afterPackage =
+        nextHeading >= 0
+          ? rawAfterPackage.slice(0, nextHeading)
+          : rawAfterPackage;
       const euroMatches = [
         ...afterPackage.matchAll(/€\s*(\d{1,3})\s*[,.'’]\s*(\d{2})/g),
       ].filter(
@@ -758,7 +671,7 @@ function parsePdfOffers(source, text, sourceUrl) {
       if (!priceMatch) continue;
       offers.push(
         offerRow(source, {
-          name: originalWindow.slice(0, 150),
+          name: productName,
           catalogId,
           pack,
           price: Number(`${priceMatch[1]}.${priceMatch[2]}`),
@@ -862,6 +775,55 @@ async function discoverEsselungaPdf(source, listing) {
 }
 
 async function scrape(source) {
+  if (source.parser === "carrefour") {
+    const paths = [
+      "pasta-riso-e-farina/",
+      "uova-latte-e-latticini/",
+      "frutta-e-verdura/",
+    ];
+    const pages = await Promise.all(
+      paths.map((path) =>
+        fetchText(`https://www.carrefour.it/spesa-online/${path}`),
+      ),
+    );
+    const cards = pages.flatMap(parseCarrefourCards);
+    return {
+      found: cards.length,
+      rows: dedupe(cards.map((card) => offerRow(source, card))),
+    };
+  }
+  if (source.parser === "aldi") {
+    const listing = await fetchText(source.url);
+    const today = capturedAt.slice(0, 10);
+    const paths = [
+      ...new Set(
+        [
+          ...listing.matchAll(
+            /href="(\/speciali-della-settimana\/(\d{4}-\d{2}-\d{2}))[^"\s]*"/g,
+          ),
+        ]
+          .filter(
+            (m) =>
+              m[2] <= today &&
+              Date.parse(today) - Date.parse(m[2]) < 7 * 86400000,
+          )
+          .map((m) => m[1]),
+      ),
+    ];
+    const pages = [
+      listing,
+      ...(await Promise.all(
+        paths
+          .slice(0, 3)
+          .map((path) => fetchText(`https://www.aldi.it${path}`)),
+      )),
+    ];
+    const cards = pages.flatMap((page) => parseAldiCards(page, today));
+    return {
+      found: cards.length,
+      rows: dedupe(cards.map((card) => offerRow(source, card))),
+    };
+  }
   if (source.parser === "pdf") {
     const text = await pdfText(source.url);
     return parsePdfOffers(source, text, source.url);
@@ -912,7 +874,16 @@ const results = await Promise.all(
 const retained = (previous.prices ?? []).filter((price) => {
   const result = results.find((entry) => entry.source.store === price.store);
   if (!result || result.ok) return false;
-  return !price.valid_to || price.valid_to >= capturedAt.slice(0, 10);
+  // Revalidate PDF extraction after parser changes instead of preserving ambiguous rows.
+  if (["esselungaPdf", "pdf", "linkedPdf"].includes(result.source.parser))
+    return false;
+  return (
+    (!price.valid_to || price.valid_to >= capturedAt.slice(0, 10)) &&
+    (price.valid_to ||
+      Date.parse(price.captured_at) >=
+        Date.parse(capturedAt) - 14 * 86400000) &&
+    !exclusions[price.catalog_id]?.test(normalize(price.name))
+  );
 });
 const prices = dedupe([...retained, ...results.flatMap((entry) => entry.rows)]);
 const statuses = results.map((result) => ({
@@ -926,11 +897,12 @@ const statuses = results.map((result) => ({
 }));
 statuses.push({
   store: "Despar",
-  ok: true,
+  ok: false,
   sourceUrl: "https://shop.despar.com/spesa-consegna-domicilio/70037",
   sourceArea: "Despar Centro Sud · Corato (BA) · CAP 70037 · import Supabase",
   productsFound: 0,
   productsMapped: 0,
+  error: "Catalogo Supabase separato: non verificato da questo job",
 });
 
 const dataset = {

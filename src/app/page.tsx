@@ -1,5 +1,6 @@
 "use client";
-import { type SetStateAction } from "react";
+import { type SetStateAction, useState, useRef } from "react";
+import { rankRecipesWithAi } from "@/lib/ai";
 import { AlertTriangle, ArrowLeft, Moon, Sun, X } from "lucide-react";
 import {
   aggregateShopping,
@@ -9,6 +10,7 @@ import {
 import { categorizeFood } from "@/lib/food";
 import DietImporter from "@/components/diet-importer";
 import AppNav from "@/components/app-nav";
+import AiOnboarding from "@/components/ai-onboarding";
 import PlanSection from "@/components/sections/plan-section";
 import ShoppingSection from "@/components/sections/shopping-section";
 import RecipesSection from "@/components/sections/recipes-section";
@@ -17,7 +19,11 @@ import SettingsSection from "@/components/sections/settings-section";
 import IdeasSection from "@/components/sections/ideas-section";
 import GuideSection from "@/components/sections/guide-section";
 import { BuiltDietPlan } from "@/lib/diet";
-import { chooseReplacementRecipe, createPlan } from "@/lib/planner";
+import {
+  chooseReplacementRecipe,
+  createPlan,
+  isCompatible,
+} from "@/lib/planner";
 import { prunePlans } from "@/lib/plans";
 import { recipes, seedPrices } from "@/lib/seed";
 import {
@@ -32,6 +38,9 @@ import { defaultPreferences, stores } from "@/lib/config";
 import { AppTab, useFuditStore } from "@/hooks/use-fudit-store";
 
 export default function Home() {
+  const [aiKey, setAiKey] = useState("");
+  const [tutorialSession, setTutorialSession] = useState(0);
+  const generationController = useRef<AbortController | null>(null);
   const {
     tab,
     ready,
@@ -143,6 +152,7 @@ export default function Home() {
     navigateTo("plan");
   };
   const generate = () => {
+    if (generationStatus === "generating") return;
     if (prefs.people <= 0 || prefs.budget <= 0) {
       setGenerationStatus("error");
       setNotice("Inserisci un budget e un numero di persone maggiori di zero.");
@@ -154,16 +164,39 @@ export default function Home() {
       return;
     }
     setGenerationStatus("generating");
+    const controller = new AbortController();
+    generationController.current = controller;
     setNotice("Analizzo ricette, prezzi e vincoli per costruire la settimana…");
-    window.setTimeout(() => {
+    window.setTimeout(async () => {
       const previousGeneratedPlan = plans.find(
         (item) => item.source === "generated" || item.source === undefined,
       );
+      let preferredIds: string[] = [];
+      let aiNotice = "";
+      if (aiKey) {
+        try {
+          preferredIds = await rankRecipesWithAi(
+            aiKey,
+            `Proponi una settimana varia. Preferenze: ${prefs.styles.filter((style) => !["low FODMAP", "senza glutine", "senza lattosio"].includes(style)).join(", ")}.`,
+            planRecipesCatalog.filter(
+              (recipe) =>
+                recipe.origin !== "diet-pdf" &&
+                isCompatible(recipe, prefs, catalog),
+            ),
+            controller.signal,
+          );
+          aiNotice = " Suggerimenti Gemini verificati dal planner.";
+        } catch {
+          aiNotice = " Gemini non disponibile: ho usato il motore locale.";
+        }
+      }
+      if (controller.signal.aborted) return;
       const p = createPlan(
         planRecipesCatalog,
         catalog,
         prefs,
         previousGeneratedPlan,
+        preferredIds,
       );
       if (!p.meals.length) {
         setGenerationStatus("error");
@@ -192,7 +225,7 @@ export default function Home() {
       setNotice(
         p.overBudget
           ? "Piano creato, ma il budget è stato superato: prova lo stile economici o riduci i pasti."
-          : `Piano creato e ottimizzato entro il budget. La lista della spesa per ${prefs.store} è pronta.`,
+          : `Piano creato e ottimizzato entro il budget. La lista della spesa per ${prefs.store} è pronta.${aiNotice}`,
       );
       navigateTo("plan");
     }, 40);
@@ -414,6 +447,13 @@ export default function Home() {
     );
   return (
     <main className={"shell " + (dark ? "dark" : "")}>
+      <AiOnboarding
+        key={tutorialSession}
+        forceOpen={tutorialSession > 0}
+        apiKey={aiKey}
+        onKeyChange={setAiKey}
+        onComplete={navigateTo}
+      />
       <header className="app-header">
         <div className="header-identity">
           {tab !== "plan" && (
@@ -526,7 +566,12 @@ export default function Home() {
         />
       )}
       {tab === "ideas" && (
-        <IdeasSection recipes={allRecipes} catalog={catalog} prefs={prefs} />
+        <IdeasSection
+          recipes={allRecipes}
+          catalog={catalog}
+          prefs={prefs}
+          aiKey={aiKey}
+        />
       )}
       {tab === "diet" && (
         <DietImporter
@@ -556,6 +601,12 @@ export default function Home() {
       {tab === "guide" && <GuideSection />}
       {tab === "settings" && (
         <SettingsSection
+          onOpenAiTutorial={() => {
+            setTutorialSession((value) => value + 1);
+            navigateTo("plan");
+          }}
+          aiKey={aiKey}
+          onAiKeyChange={setAiKey}
           plans={plans}
           retention={retention}
           onRetentionChange={changeRetention}
@@ -567,6 +618,9 @@ export default function Home() {
           onExport={exportBackup}
           onImport={importBackup}
           onReset={() => {
+            generationController.current?.abort();
+            setGenerationStatus("idle");
+            setAiKey("");
             clearAppStorage();
             setPrefs(defaultPreferences);
             setCatalog(seedPrices);

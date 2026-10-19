@@ -30,9 +30,17 @@ export const recipeCourse = (recipe: Recipe): RecipeCourse => {
   if (recipe.course) return recipe.course;
   if (recipe.tags.includes("dolci")) return "Dolce";
   const title = recipe.title.toLowerCase();
-  if (/^(pollo|tacchin|salmone|merluzz|tonno|tofu|uova|frittata|burger|manzo|maiale)/.test(title))
+  if (
+    /^(pollo|tacchin|salmone|merluzz|tonno|tofu|uova|frittata|burger|manzo|maiale)/.test(
+      title,
+    )
+  )
     return "Secondo";
-  if (/pasta|riso|risotto|zuppa|vellutata|dahl|cous cous|polenta|quinoa/.test(title))
+  if (
+    /pasta|riso|risotto|zuppa|vellutata|dahl|cous cous|polenta|quinoa/.test(
+      title,
+    )
+  )
     return "Primo";
   if (/insalat|verdure|contorno|patate al forno|zucchine grigliate/.test(title))
     return "Contorno";
@@ -52,16 +60,32 @@ export const mealFamilies = (recipe: Recipe): string[] => {
     families.push("legumi");
   if (["pollo", "tacchino"].some((id) => ids.has(id)))
     families.push("carni-bianche");
-  if (["manzo", "maiale"].some((id) => ids.has(id)))
+  if (
+    ["manzo", "maiale", "vitello", "bresaola", "prosciutto-cotto"].some((id) =>
+      ids.has(id),
+    )
+  )
     families.push("carni-rosse");
-  if (["salmone", "tonno", "merluzzo"].some((id) => ids.has(id)))
+  if (
+    ["salmone", "tonno", "merluzzo", "orata", "totano", "gamberi"].some((id) =>
+      ids.has(id),
+    )
+  )
     families.push("pesce");
   if (ids.has("uova")) families.push("uova");
   if (ids.has("tofu")) families.push("soia");
   return families;
 };
 
-const pantryStaples = new Set(["cipolle", "olive"]);
+const pantryStaples = new Set([
+  "cipolle",
+  "olive",
+  "olio-oliva",
+  "aglio",
+  "salsa-soia",
+  "zenzero",
+  "curry",
+]);
 
 /** Ingredienti che devono ruotare nella settimana; esclude solo i condimenti. */
 export const mealVarietyKeys = (recipe: Recipe): string[] =>

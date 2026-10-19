@@ -1,4 +1,94 @@
 @import "tailwindcss";
+.ai-onboarding {
+  margin-bottom: 24px;
+}
+.ai-onboarding > p,
+.onboarding-instructions {
+  max-width: 70ch;
+  line-height: 1.65;
+}
+.ai-onboarding a {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.ai-onboarding a svg {
+  display: inline;
+  vertical-align: baseline;
+}
+.onboarding-instructions {
+  list-style: decimal;
+  padding-left: 22px;
+}
+.onboarding-instructions li + li {
+  margin-top: 12px;
+}
+.onboarding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+@media (max-width: 600px) {
+  .onboarding-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+.ai-settings {
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+.ai-settings p,
+.ideas-ai p {
+  max-width: 70ch;
+  line-height: 1.6;
+}
+.ai-settings a {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.ai-key-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ai-key-row input {
+  flex: 1;
+  min-width: 0;
+}
+.ideas-ai {
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  padding-top: 24px;
+}
+.ideas-ai h3 {
+  margin: 0 0 8px;
+}
+.ideas-ai textarea {
+  margin-bottom: 12px;
+}
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+::selection {
+  background: var(--mint);
+  color: var(--ink);
+}
+.catalog-row {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 600px) {
+  .ai-key-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
 .catalog-row {
   align-items: center;
   padding: 9px 0;
@@ -42,7 +132,7 @@
   --cream: #f6f8f6;
   --line: #dce5dd;
   --surface: #fff;
-  --muted: #688078;
+  --muted: #526f64;
 }
 * {
   box-sizing: border-box;

@@ -57,7 +57,11 @@ export default function PlanSection({
                 Imposta preferenze e budget: Fudit creerà 7 giorni e la lista
                 della spesa associata.
               </p>
-              <button className="button" onClick={onGenerate}>
+              <button
+                className="button"
+                onClick={onGenerate}
+                disabled={generationStatus === "generating"}
+              >
                 Crea piano di 7 giorni
               </button>
             </>
@@ -174,7 +178,10 @@ export default function PlanSection({
                 </div>
               ))}
               {plan.desserts && plan.desserts.length > 0 && (
-                <section className="weekly-desserts" aria-label="Dolci della settimana">
+                <section
+                  className="weekly-desserts"
+                  aria-label="Dolci della settimana"
+                >
                   <div className="weekly-desserts-heading">
                     <div>
                       <b>3 dolci della settimana</b>

@@ -480,6 +480,7 @@ export const createPlan = (
   catalog: PriceItem[],
   prefs: Preferences,
   previousPlan?: MealPlan,
+  preferredRecipeIds: string[] = [],
 ): MealPlan => {
   const now = new Date();
   const wantsDesserts = prefs.styles.includes("dolci");
@@ -516,8 +517,7 @@ export const createPlan = (
   const mealBudget = Math.max(0, prefs.budget - dessertTotal);
   const compatible = recipes.filter(
     (recipe) =>
-      recipeCourse(recipe) !== "Dolce" &&
-      isCompatible(recipe, prefs, catalog),
+      recipeCourse(recipe) !== "Dolce" && isCompatible(recipe, prefs, catalog),
   );
   const completelyPriced = compatible.filter((recipe) =>
     recipe.ingredients.every(
@@ -548,7 +548,9 @@ export const createPlan = (
   const candidates = options.map((r) => ({
     recipe: r,
     cost: recipeCost(r, catalog, prefs.store, prefs.people, now),
-    preferenceScore: prefs.styles.filter((s) => r.tags.includes(s)).length,
+    preferenceScore:
+      prefs.styles.filter((s) => r.tags.includes(s)).length +
+      (preferredRecipeIds.includes(r.id) ? 0.5 : 0),
     continuityPenalty: Math.round(
       Math.max(
         0,

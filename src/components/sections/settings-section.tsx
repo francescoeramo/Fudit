@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Download, Trash2, Upload } from "lucide-react";
 import ConfirmDialog from "@/components/confirm-dialog";
+import AiSettings from "@/components/ai-settings";
 import { retentionOptions } from "@/lib/config";
 import { planDateLabel } from "@/lib/plans";
 import { MealPlan, PlanRetention } from "@/lib/types";
@@ -16,6 +17,9 @@ export default function SettingsSection({
   onExport,
   onImport,
   onReset,
+  aiKey = "",
+  onAiKeyChange = () => {},
+  onOpenAiTutorial,
 }: {
   plans: MealPlan[];
   retention: PlanRetention;
@@ -25,12 +29,20 @@ export default function SettingsSection({
   onExport: () => void;
   onImport: (file: File) => Promise<void>;
   onReset: () => void;
+  aiKey?: string;
+  onAiKeyChange?: (key: string) => void;
+  onOpenAiTutorial?: () => void;
 }) {
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const planToDelete = plans.find((plan) => plan.id === pendingDelete);
   return (
     <section className="card">
+      <AiSettings
+        apiKey={aiKey}
+        onChange={onAiKeyChange}
+        onOpenTutorial={onOpenAiTutorial}
+      />
       <h2>Dati locali</h2>
       <p className="muted">
         I dati restano in questo browser e usano il formato Fudit v6. Esporta

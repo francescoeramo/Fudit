@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { Dices, Search } from "lucide-react";
 import { scaleIngredients } from "@/lib/calculations";
 import { recipeCourse } from "@/lib/food";
+import { rankRecipesWithAi } from "@/lib/ai";
 import {
   countMatchedIngredients,
   getQuickIngredients,
@@ -24,10 +25,12 @@ export default function IdeasSection({
   recipes,
   catalog,
   prefs,
+  aiKey = "",
 }: {
   recipes: Recipe[];
   catalog: PriceItem[];
   prefs: Preferences;
+  aiKey?: string;
 }) {
   const [checked, setChecked] = useState<string[]>([]);
   const [written, setWritten] = useState("");
@@ -35,6 +38,9 @@ export default function IdeasSection({
   const [submitted, setSubmitted] = useState(false);
   const [selectedId, setSelectedId] = useState("");
   const [servings, setServings] = useState<number | "">(2);
+  const [aiRequest, setAiRequest] = useState("");
+  const [aiStatus, setAiStatus] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
   const quickIngredients = useMemo(
     () => getQuickIngredients(catalog, recipes),
     [catalog, recipes],
@@ -63,6 +69,31 @@ export default function IdeasSection({
     [recipes, requested, selectedCourses, prefs, catalog],
   );
   const selected = recipes.find((recipe) => recipe.id === selectedId);
+  const askAi = async () => {
+    setAiBusy(true);
+    setAiStatus("");
+    try {
+      const ids = await rankRecipesWithAi(
+        aiKey,
+        aiRequest ||
+          "Scegli una ricetta pratica con gli ingredienti disponibili.",
+        suggestions.filter((recipe) => recipe.origin !== "diet-pdf"),
+      );
+      setSubmitted(true);
+      setSelectedId(ids[0]);
+      setAiStatus(
+        "Ricetta suggerita da Gemini e verificata con i filtri attuali.",
+      );
+    } catch (error) {
+      setAiStatus(
+        error instanceof Error
+          ? error.message
+          : "Gemini non disponibile. Usa la ricerca locale.",
+      );
+    } finally {
+      setAiBusy(false);
+    }
+  };
 
   const search = (event: FormEvent) => {
     event.preventDefault();
@@ -92,6 +123,7 @@ export default function IdeasSection({
           <label htmlFor="ideas-ingredients">Ingredienti scritti</label>
           <textarea
             id="ideas-ingredients"
+            disabled={aiBusy}
             rows={2}
             maxLength={600}
             value={written}
@@ -101,7 +133,7 @@ export default function IdeasSection({
             }}
             placeholder="Es. UOVA, Farina, cioccolato fondente"
           />
-          <fieldset>
+          <fieldset disabled={aiBusy}>
             <legend>
               Ingredienti rapidi ({quickIngredients.length} disponibili)
             </legend>
@@ -126,7 +158,7 @@ export default function IdeasSection({
               ))}
             </div>
           </fieldset>
-          <fieldset>
+          <fieldset disabled={aiBusy}>
             <legend>Categorie (facoltative, anche più di una)</legend>
             <div className="choice-row">
               {courses.map((course) => (
@@ -150,14 +182,51 @@ export default function IdeasSection({
             </div>
           </fieldset>
           <div className="ideas-actions">
-            <button className="button" type="submit">
+            <button className="button" type="submit" disabled={aiBusy}>
               <Search size={17} /> Suggerisci ricette
             </button>
-            <button className="button alt" type="button" onClick={random}>
+            <button
+              className="button alt"
+              type="button"
+              onClick={random}
+              disabled={aiBusy}
+            >
               <Dices size={17} /> Random
             </button>
           </div>
         </form>
+        <div className="ideas-ai">
+          <h3>Un’idea su misura</h3>
+          <p className="muted">
+            Descrivi cosa ti va. Gemini sceglie fra le ricette che rispettano i
+            filtri; prezzi e dosi restano quelli del catalogo.
+          </p>
+          <label htmlFor="ai-recipe-request">Cosa vuoi cucinare?</label>
+          <textarea
+            id="ai-recipe-request"
+            disabled={aiBusy}
+            rows={2}
+            maxLength={600}
+            value={aiRequest}
+            onChange={(event) => setAiRequest(event.target.value)}
+            placeholder="Una cena autunnale cremosa, pronta in mezz’ora"
+          />
+          <button
+            type="button"
+            className="button alt"
+            disabled={aiBusy || !suggestions.length || !aiKey}
+            onClick={() => void askAi()}
+          >
+            {aiBusy ? "Cerco un’idea…" : "Chiedi a Gemini"}
+          </button>
+          {!aiKey && (
+            <p className="muted">
+              Aggiungi la tua chiave gratuita in Impostazioni → Assistente
+              ricette.
+            </p>
+          )}
+          <p role="status">{aiStatus}</p>
+        </div>
       </section>
       {submitted && (
         <section className="ideas-results" aria-live="polite">

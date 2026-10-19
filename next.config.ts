@@ -15,7 +15,7 @@ const securityHeaders = [
       "font-src 'self' data:",
       "style-src 'self' 'unsafe-inline'",
       `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${developmentEval} blob: https://cdn.jsdelivr.net`,
-      "connect-src 'self' https://oaazqgfeawpwkgmcykgg.supabase.co https://cdn.jsdelivr.net https://tessdata.projectnaptha.com",
+      "connect-src 'self' https://generativelanguage.googleapis.com https://oaazqgfeawpwkgmcykgg.supabase.co https://cdn.jsdelivr.net https://tessdata.projectnaptha.com",
       "worker-src 'self' blob:",
       "upgrade-insecure-requests",
     ].join("; "),

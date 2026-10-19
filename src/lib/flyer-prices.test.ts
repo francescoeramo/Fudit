@@ -36,6 +36,41 @@ const dataset = {
 } as const;
 
 describe("flyer prices", () => {
+  it.each(["ALDI", "Carrefour"])(
+    "importa %s senza sostituire i prezzi manuali",
+    (store) => {
+      const normalized = normalizeFlyerDataset({
+        ...dataset,
+        prices: [{ ...dataset.prices[0], store }],
+        stores: [{ ...dataset.stores[0], store }],
+      });
+      const seed = seedPrices.find((p) => p.id === "pomodori")!;
+      const local = {
+        ...seed,
+        stores: { ...seed.stores, [store]: 4.5 },
+        priceSources: {
+          [store]: {
+            kind: "manual" as const,
+            importedAt: "2026-08-11T08:00:00.000Z",
+          },
+        },
+      };
+      const result = mergeFlyerPrices(
+        [local],
+        normalized,
+        new Date("2026-08-11"),
+      );
+      expect(result[0].stores[store as "ALDI" | "Carrefour"]).toBe(4.5);
+      const imported = mergeFlyerPrices(
+        [seed],
+        normalized,
+        new Date("2026-08-11"),
+      );
+      expect(imported[0].confirmedStores?.[store as "ALDI" | "Carrefour"]).toBe(
+        true,
+      );
+    },
+  );
   it("normalizza e applica un prezzo corrente alla relativa insegna", () => {
     const normalized = normalizeFlyerDataset(dataset);
     const merged = mergeFlyerPrices(

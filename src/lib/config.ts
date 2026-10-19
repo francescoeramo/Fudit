@@ -1,6 +1,8 @@
 import { FoodStyle, PlanRetention, Preferences, Store } from "./types";
 
 export const stores: Store[] = [
+  "ALDI",
+  "Carrefour",
   "Esselunga",
   "Lidl",
   "Eurospin",
